@@ -17,6 +17,8 @@
 #include "cartographer/common/time.h"
 
 #include <string>
+#include <iostream>
+#include <iomanip>
 
 namespace cartographer {
 namespace common {
@@ -34,6 +36,10 @@ double ToSeconds(const Duration duration) {
 Time FromUniversal(const int64 ticks) { return Time(Duration(ticks)); }
 
 int64 ToUniversal(const Time time) { return time.time_since_epoch().count(); }
+
+double ToUniversalDouble(const Time time) { 
+	return double(time.time_since_epoch().count() - int64(636469000000000000)); 
+}
 
 std::ostream& operator<<(std::ostream& os, const Time time) {
   os << std::to_string(ToUniversal(time));

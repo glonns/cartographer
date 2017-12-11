@@ -31,6 +31,7 @@
 #include "cartographer/io/probability_grid_points_processor.h"
 #include "cartographer/io/xray_points_processor.h"
 #include "cartographer/io/xyz_writing_points_processor.h"
+#include "cartographer/io/ply_custom_writing_points_processor.h"
 #include "cartographer/mapping/proto/trajectory.pb.h"
 
 namespace cartographer {
@@ -100,6 +101,8 @@ void RegisterBuiltInPointsProcessors(
   RegisterFileWritingPointsProcessorWithTrajectories<
       ProbabilityGridPointsProcessor>(trajectories, file_writer_factory,
                                       builder);
+  RegisterFileWritingPointsProcessor<PlyCustomWritingPointsProcessor>(
+      file_writer_factory, builder);
 }
 
 void PointsProcessorPipelineBuilder::Register(const std::string& name,
