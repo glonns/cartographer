@@ -33,13 +33,15 @@ namespace {
 // Writes the PLY header claiming 'num_points' will follow it into
 // 'output_file'.
 void WriteCustomBinaryPlyHeader(const bool has_color, const bool has_intensity, const int64 num_points, FileWriter* const file_writer) {
-
+//void WriteCustomBinaryPlyHeader(const bool has_color, const bool has_intensity, const bool has_ring, const int64 num_points, FileWriter* const file_writer) {
   std::string color_header = !has_color ? ""
                                         : "property uchar red\n"
                                           "property uchar green\n"
                                           "property uchar blue\n";
   std::string intensity_header = !has_intensity ? ""
                                         : "property float intensity\n";
+  /*std::string ring_header = !has_ring ? ""
+                                        : "property int ring\n";*/
 
   std::ostringstream stream;
   stream << "ply\n"
@@ -53,6 +55,7 @@ void WriteCustomBinaryPlyHeader(const bool has_color, const bool has_intensity, 
          << "property float z\n"
          << color_header
          << intensity_header << "end_header\n";
+         //<< ring_header << "end_header\n";
   const std::string out = stream.str();
   CHECK(file_writer->WriteHeader(out.data(), out.size()));
 }
@@ -86,6 +89,13 @@ void WriteCustomBinaryPlyPointIntensity(const float& intensity, FileWriter* cons
   CHECK(file_writer->Write(buffer, 4));
 }
 
+/*void WriteCustomBinaryPlyPointRing(const int& ring, FileWriter* const file_writer) {
+
+  char buffer[sizeof(int)];
+  memcpy(buffer, &ring, sizeof(int));
+  CHECK(file_writer->Write(buffer, sizeof(int)));
+}
+*/
 }  // namespace
 
 std::unique_ptr<PlyCustomWritingPointsProcessor>
@@ -103,6 +113,7 @@ PlyCustomWritingPointsProcessor::PlyCustomWritingPointsProcessor(
       num_points_(0),
       has_colors_(false),
       has_intensity_(false),
+      //has_rings_(false),
       file_(std::move(file_writer)) {}
 
 PointsProcessor::FlushResult PlyCustomWritingPointsProcessor::Flush() {
@@ -119,6 +130,22 @@ PointsProcessor::FlushResult PlyCustomWritingPointsProcessor::Flush() {
   }
   LOG(FATAL);
 }
+/*
+PointsProcessor::FlushResult PlyCustomWritingPointsProcessor::Flush() {
+  WriteCustomBinaryPlyHeader(has_colors_, has_intensity_, has_rings_, num_points_, file_.get());
+  CHECK(file_->Close()) << "Closing PLY file_writer failed.";
+
+  switch (next_->Flush()) {
+    case FlushResult::kFinished:
+      return FlushResult::kFinished;
+
+    case FlushResult::kRestartStream:
+      LOG(FATAL) << "PLY generation must be configured to occur after any "
+                    "stages that require multiple passes.";
+  }
+  LOG(FATAL);
+}
+*/
 
 void PlyCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch) {
   if (batch->points.empty()) {
@@ -129,7 +156,9 @@ void PlyCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
   if (num_points_ == 0) {
     has_colors_ = !batch->colors.empty();
     has_intensity_ = !batch->intensities.empty();
+    //has_rings_ = !batch->rings.empty();
     WriteCustomBinaryPlyHeader(has_colors_, has_intensity_, 0, file_.get());
+    //WriteCustomBinaryPlyHeader(has_colors_, has_intensity_, has_rings_, 0, file_.get());
   }
   if (has_colors_) {
     CHECK_EQ(batch->points.size(), batch->colors.size())
@@ -143,7 +172,13 @@ void PlyCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
            "frame_id: "
         << batch->frame_id;
   }
-
+  /*if (has_rings_) {
+    CHECK_EQ(batch->points.size(), batch->rings.size())
+        << "First PointsBatch had rings, but encountered one without. "
+           "frame_id: "
+        << batch->frame_id;
+  }
+  */
   for (size_t i = 0; i < batch->points.size(); ++i) {
     WriteCustomBinaryPlyPointTime(ToUniversalDouble(batch->start_time), file_.get());
     WriteCustomBinaryPlyPointCoordinate(batch->points[i], file_.get());
@@ -153,6 +188,10 @@ void PlyCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
     if (has_intensity_) {
       WriteCustomBinaryPlyPointIntensity(batch->intensities[i], file_.get());
     }
+    /*if (has_rings_) {
+      WriteCustomBinaryPlyPointRing(batch->rings[i], file_.get());
+    }
+    */
     ++num_points_;
   }
   next_->Process(std::move(batch));

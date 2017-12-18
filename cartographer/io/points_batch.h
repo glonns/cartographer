@@ -63,6 +63,9 @@ struct PointsBatch {
 
   // Colors are optional. If set, they are RGB values.
   std::vector<FloatColor> colors;
+  
+  // Rings are optional. If set, they are the laser number (in scanner) of a point.
+  //std::vector<int> rings;
 };
 
 // Removes the indices in 'to_remove' from 'batch'.

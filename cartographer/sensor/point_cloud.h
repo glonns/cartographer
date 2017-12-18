@@ -42,6 +42,14 @@ struct PointCloudWithIntensities {
   std::vector<float> intensities;
 };
 
+/*
+//point cloud with intensity and ring number
+struct PointCloudWithIntensities {
+  TimedPointCloud points;
+  std::vector<float> intensities;
+  std::vector<int> rings;
+};
+*/
 // Transforms 'point_cloud' according to 'transform'.
 PointCloud TransformPointCloud(const PointCloud& point_cloud,
                                const transform::Rigid3f& transform);
