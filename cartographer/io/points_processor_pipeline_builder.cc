@@ -32,6 +32,8 @@
 #include "cartographer/io/xray_points_processor.h"
 #include "cartographer/io/xyz_writing_points_processor.h"
 #include "cartographer/io/ply_custom_writing_points_processor.h"
+#include "cartographer/io/pcd_custom_writing_points_processor.h"
+#include "cartographer/io/las_writing_points_processor.h"
 #include "cartographer/mapping/proto/trajectory.pb.h"
 
 namespace cartographer {
@@ -102,6 +104,10 @@ void RegisterBuiltInPointsProcessors(
       ProbabilityGridPointsProcessor>(trajectories, file_writer_factory,
                                       builder);
   RegisterFileWritingPointsProcessor<PlyCustomWritingPointsProcessor>(
+      file_writer_factory, builder);
+  RegisterFileWritingPointsProcessor<PcdCustomWritingPointsProcessor>(
+      file_writer_factory, builder);
+  RegisterFileWritingPointsProcessor<LasWritingPointsProcessor>(
       file_writer_factory, builder);
 }
 

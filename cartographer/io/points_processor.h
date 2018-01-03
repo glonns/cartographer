@@ -45,6 +45,9 @@ class PointsProcessor {
   // Some implementations will perform expensive computations and others that do
   // multiple passes over the data might ask for restarting the stream.
   virtual FlushResult Flush() = 0;
+
+  //name of export file
+  std::string outputName = "NaN";
 };
 
 }  // namespace io

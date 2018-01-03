@@ -65,7 +65,13 @@ struct PointsBatch {
   std::vector<FloatColor> colors;
   
   // Rings are optional. If set, they are the laser number (in scanner) of a point.
-  //std::vector<int> rings;
+  std::vector<uint16_t> rings;
+  
+  // echoes are optional. If set, they are the echo number of a laser point.
+  std::vector<uint16_t> echoes;
+
+  // Time at which the first point of this batch has been acquired. UNIX time
+  double start_time_unix;
 };
 
 // Removes the indices in 'to_remove' from 'batch'.

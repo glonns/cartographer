@@ -37,19 +37,24 @@ typedef std::vector<Eigen::Vector3f> PointCloud;
 // are 0.f. For 2D points, the third entry is 0.f and the fourth entry is time.
 typedef std::vector<Eigen::Vector4f> TimedPointCloud;
 
+/*
 struct PointCloudWithIntensities {
   TimedPointCloud points;
   std::vector<float> intensities;
 };
+*/
 
-/*
 //point cloud with intensity and ring number
 struct PointCloudWithIntensities {
   TimedPointCloud points;
   std::vector<float> intensities;
-  std::vector<int> rings;
+  std::vector<uint16_t> rings;
+  std::vector<uint16_t> echoes;
+  std::vector<uint8_t> reds;
+  std::vector<uint8_t> greens;
+  std::vector<uint8_t> blues;
 };
-*/
+
 // Transforms 'point_cloud' according to 'transform'.
 PointCloud TransformPointCloud(const PointCloud& point_cloud,
                                const transform::Rigid3f& transform);

@@ -18,24 +18,27 @@
 #include "cartographer/io/file_writer.h"
 #include "cartographer/io/points_processor.h"
 
+//las writer
+#include "LAStools/inc/laswriter.hpp"
+
 namespace cartographer {
 namespace io {
 
-// Streams a PLY file to disk. The header is written in 'Flush'.
-class PlyCustomWritingPointsProcessor : public PointsProcessor {
+// Streams a Las file to disk. The header is written in 'Flush'.
+class LasWritingPointsProcessor : public PointsProcessor {
  public:
-  constexpr static const char* kConfigurationFileActionName = "write_custom_ply";
-  PlyCustomWritingPointsProcessor(std::unique_ptr<FileWriter> file_writer,
+  constexpr static const char* kConfigurationFileActionName = "write_las";
+  LasWritingPointsProcessor(std::unique_ptr<FileWriter> file_writer,
                             PointsProcessor* next);
 
-  static std::unique_ptr<PlyCustomWritingPointsProcessor> FromDictionary(
+  static std::unique_ptr<LasWritingPointsProcessor> FromDictionary(
       const FileWriterFactory& file_writer_factory,
       common::LuaParameterDictionary* dictionary, PointsProcessor* next);
 
-  ~PlyCustomWritingPointsProcessor() override {}
+  ~LasWritingPointsProcessor() override {}
 
-  PlyCustomWritingPointsProcessor(const PlyCustomWritingPointsProcessor&) = delete;
-  PlyCustomWritingPointsProcessor& operator=(const PlyCustomWritingPointsProcessor&) =
+  LasWritingPointsProcessor(const LasWritingPointsProcessor&) = delete;
+  LasWritingPointsProcessor& operator=(const LasWritingPointsProcessor&) =
       delete;
 
   void Process(std::unique_ptr<PointsBatch> batch) override;

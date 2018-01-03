@@ -34,6 +34,15 @@ find_package(Eigen3 REQUIRED)
 find_package(LuaGoogle REQUIRED)
 find_package(Protobuf 3.0.0 REQUIRED)
 
+#find LAStools include files
+find_package(LAStools REQUIRED)
+include_directories(${LAStools_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
+
+message("LAStools_LIBRARIES" ${LAStools_LIBRARIES})
+message("LAStools_INCLUDE_DIRS" ${LAStools_INCLUDE_DIRS})
+set(LASlib_LIBRARIES "/home/silvere/SLAM_catkin_ws/install_isolated/lib/libliblas.so")
+message("LASlib_LIBRARIES" ${LASlib_LIBRARIES})
+
 include(FindPkgConfig)
 PKG_SEARCH_MODULE(CAIRO REQUIRED cairo>=1.12.16)
 
@@ -155,6 +164,12 @@ foreach(ABS_FIL ${ALL_TESTS})
     target_link_libraries("${TEST_TARGET_NAME}" PUBLIC grpc++)
   endif()
 endforeach()
+
+# link against lastools
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+  "${LAStools_INCLUDE_DIRS}")
+target_link_libraries(${PROJECT_NAME} PUBLIC ${LAStools_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${LASlib_LIBRARIES})
 
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   "${EIGEN3_INCLUDE_DIR}")

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <fstream>
+
 #include "cartographer/common/lua_parameter_dictionary.h"
 #include "cartographer/io/file_writer.h"
 #include "cartographer/io/points_processor.h"
@@ -21,21 +23,21 @@
 namespace cartographer {
 namespace io {
 
-// Streams a PLY file to disk. The header is written in 'Flush'.
-class PlyCustomWritingPointsProcessor : public PointsProcessor {
+// Streams a PCD file to disk. The header is written in 'Flush'.
+class PcdCustomWritingPointsProcessor : public PointsProcessor {
  public:
-  constexpr static const char* kConfigurationFileActionName = "write_custom_ply";
-  PlyCustomWritingPointsProcessor(std::unique_ptr<FileWriter> file_writer,
+  constexpr static const char* kConfigurationFileActionName = "write_custom_pcd";
+  PcdCustomWritingPointsProcessor(std::unique_ptr<FileWriter> file_writer,
                             PointsProcessor* next);
 
-  static std::unique_ptr<PlyCustomWritingPointsProcessor> FromDictionary(
-      const FileWriterFactory& file_writer_factory,
+  static std::unique_ptr<PcdCustomWritingPointsProcessor> FromDictionary(
+      FileWriterFactory file_writer_factory,
       common::LuaParameterDictionary* dictionary, PointsProcessor* next);
 
-  ~PlyCustomWritingPointsProcessor() override {}
+  ~PcdCustomWritingPointsProcessor() override {}
 
-  PlyCustomWritingPointsProcessor(const PlyCustomWritingPointsProcessor&) = delete;
-  PlyCustomWritingPointsProcessor& operator=(const PlyCustomWritingPointsProcessor&) =
+  PcdCustomWritingPointsProcessor(const PcdCustomWritingPointsProcessor&) = delete;
+  PcdCustomWritingPointsProcessor& operator=(const PcdCustomWritingPointsProcessor&) =
       delete;
 
   void Process(std::unique_ptr<PointsBatch> batch) override;
@@ -48,7 +50,7 @@ class PlyCustomWritingPointsProcessor : public PointsProcessor {
   bool has_colors_;
   bool has_intensity_;
   bool has_rings_;
-  std::unique_ptr<FileWriter> file_;
+  std::unique_ptr<FileWriter> file_writer_;
 };
 
 }  // namespace io
