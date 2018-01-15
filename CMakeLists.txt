@@ -36,12 +36,7 @@ find_package(Protobuf 3.0.0 REQUIRED)
 
 #find LAStools include files
 find_package(LAStools REQUIRED)
-include_directories(${LAStools_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
-
-message("LAStools_LIBRARIES" ${LAStools_LIBRARIES})
-message("LAStools_INCLUDE_DIRS" ${LAStools_INCLUDE_DIRS})
-set(LASlib_LIBRARIES "/home/silvere/SLAM_catkin_ws/install_isolated/lib/libliblas.so")
-message("LASlib_LIBRARIES" ${LASlib_LIBRARIES})
+set(LASlib_LIBRARIES ${CMAKE_INSTALL_PREFIX}/lib/libliblas.so)
 
 include(FindPkgConfig)
 PKG_SEARCH_MODULE(CAIRO REQUIRED cairo>=1.12.16)
