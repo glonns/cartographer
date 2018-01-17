@@ -34,6 +34,8 @@
 #include "cartographer/io/ply_custom_writing_points_processor.h"
 #include "cartographer/io/pcd_custom_writing_points_processor.h"
 #include "cartographer/io/las_writing_points_processor.h"
+#include "cartographer/io/intensity_range_normalization_processor.h"
+#include "cartographer/io/trajectory_ply_writing_points_processor.h"
 #include "cartographer/mapping/proto/trajectory.pb.h"
 
 namespace cartographer {
@@ -109,6 +111,8 @@ void RegisterBuiltInPointsProcessors(
       file_writer_factory, builder);
   RegisterFileWritingPointsProcessor<LasWritingPointsProcessor>(
       file_writer_factory, builder);
+  RegisterPlainPointsProcessor<IntensityRangeNormalizationProcessor>(builder);
+  RegisterFileWritingPointsProcessorWithTrajectories<TrajectoryPlyWritingPointsProcessor>(trajectories, file_writer_factory, builder);
 }
 
 void PointsProcessorPipelineBuilder::Register(const std::string& name,
