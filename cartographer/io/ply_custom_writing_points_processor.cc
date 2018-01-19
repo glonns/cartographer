@@ -202,6 +202,7 @@ void PlyCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
     if (has_intensity_) {
       WriteCustomBinaryPlyPointIntensity(batch->intensities[i], file_.get());
     }
+    //std::cout << std::setprecision(17) << "start_time_unix " << batch->start_time_unix << std::endl;
     WriteCustomBinaryPlyPointTime(batch->start_time_unix, file_.get());
     if (has_rings_) {
       WriteCustomBinaryPlyPointRing(batch->rings[i], file_.get());

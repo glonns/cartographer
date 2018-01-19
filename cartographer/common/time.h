@@ -56,6 +56,9 @@ Time FromUniversal(int64 ticks);
 // Outputs the Universal Time Scale timestamp for a given Time.
 int64 ToUniversal(Time time);
 
+// Time to seconds from epoch
+double TicksToUnixSeconds(int64 ticks);
+
 // Outputs the Universal Time Scale timestamp for a given Time.
 double ToUniversalDouble(Time time);
 

@@ -37,8 +37,14 @@ Time FromUniversal(const int64 ticks) { return Time(Duration(ticks)); }
 
 int64 ToUniversal(const Time time) { return time.time_since_epoch().count(); }
 
+double TicksToUnixSeconds(int64 ticks) {
+	//return double(std::chrono::duration_cast<std::chrono::seconds>(time.time_since_epoch()).count());
+	return double(ticks) * double(0.0000001) - double(kUtsEpochOffsetFromUnixEpochInSeconds);
+}
+
 double ToUniversalDouble(const Time time) { 
-	return double(time.time_since_epoch().count() - int64(636469000000000000)); 
+	//return double(time.time_since_epoch().count() - int64(636469000000000000)); 
+	return double(time.time_since_epoch().count());
 }
 
 std::ostream& operator<<(std::ostream& os, const Time time) {

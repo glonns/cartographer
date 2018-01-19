@@ -10,6 +10,7 @@
 #include "cartographer/io/points_batch.h"
 #include "glog/logging.h"
 #include "cartographer/transform/transform.h"
+#include "cartographer/common/time.h"
 
 namespace cartographer {
 namespace io {
@@ -46,7 +47,7 @@ void WriteCustomBinaryPlyTrajectory(mapping::proto::Trajectory& trajectory,
     return;
   }
 
-  for (const auto& node : trajectory.node()) {
+  for (const mapping::proto::Trajectory::Node& node : trajectory.node()) {//(const auto& node : trajectory.node()) {
 	//get transform
 	transform::Rigid3d transform = transform::ToRigid3(node.pose());//trajectory.node(trajectory.node_size() - 1).pose());
 	//get xyz and rotations
@@ -60,7 +61,15 @@ void WriteCustomBinaryPlyTrajectory(mapping::proto::Trajectory& trajectory,
 	x_rot = float(euler[0]);
 	y_rot = float(euler[1]);
 	z_rot = float(euler[2]);
-	time = trajectory.node(trajectory.node_size() - 1).timestamp();
+
+	//cartographer::common::Time Time_from_ticks = cartographer::common::FromUniversal(node.timestamp());
+	//time = 0;//cartographer::common::ToSeconds(time_from_ticks);//trajectory.node(trajectory.node_size() - 1).timestamp();
+    	//std::cout << std::setprecision(17) << "Duration_from_ticks " << Duration_from_ticks << std::endl;
+	//time = cartographer::common::TimeToUnixSeconds(Time_from_ticks);
+	//std::cout << std::setprecision(17) << "trajectory.node(trajectory.node_size() - 1).timestamp() " << trajectory.node(trajectory.node_size() - 1).timestamp() << std::endl;
+	//std::cout << std::setprecision(17) << "Time_from_ticks " << Time_from_ticks << std::endl;
+	time = cartographer::common::TicksToUnixSeconds(node.timestamp());
+    	std::cout << std::setprecision(17) << "time " << time << std::endl;
 
 	//write trajectory node to file
 	char buffer[32];
