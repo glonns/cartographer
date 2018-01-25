@@ -69,7 +69,7 @@ void WriteCustomBinaryPlyTrajectory(mapping::proto::Trajectory& trajectory,
 	//std::cout << std::setprecision(17) << "trajectory.node(trajectory.node_size() - 1).timestamp() " << trajectory.node(trajectory.node_size() - 1).timestamp() << std::endl;
 	//std::cout << std::setprecision(17) << "Time_from_ticks " << Time_from_ticks << std::endl;
 	time = cartographer::common::TicksToUnixSeconds(node.timestamp());
-    	std::cout << std::setprecision(17) << "time " << time << std::endl;
+    	//std::cout << std::setprecision(17) << "time " << time << std::endl;
 
 	//write trajectory node to file
 	char buffer[32];
