@@ -29,16 +29,19 @@ constexpr double kSensorDataRatesLoggingPeriodSeconds = 15.;
 }  // namespace
 
 CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
-    sensor::Collator* const sensor_collator, const int trajectory_id,
-    const std::unordered_set<std::string>& expected_sensor_ids,
-    std::unique_ptr<GlobalTrajectoryBuilderInterface>
-        wrapped_trajectory_builder)
+    sensor::CollatorInterface* const sensor_collator, const int trajectory_id,
+    const std::set<SensorId>& expected_sensor_ids,
+    std::unique_ptr<TrajectoryBuilderInterface> wrapped_trajectory_builder)
     : sensor_collator_(sensor_collator),
       trajectory_id_(trajectory_id),
       wrapped_trajectory_builder_(std::move(wrapped_trajectory_builder)),
       last_logging_time_(std::chrono::steady_clock::now()) {
+  std::unordered_set<std::string> expected_sensor_id_strings;
+  for (const auto& sensor_id : expected_sensor_ids) {
+    expected_sensor_id_strings.insert(sensor_id.id);
+  }
   sensor_collator_->AddTrajectory(
-      trajectory_id, expected_sensor_ids,
+      trajectory_id, expected_sensor_id_strings,
       [this](const std::string& sensor_id, std::unique_ptr<sensor::Data> data) {
         HandleCollatedSensorData(sensor_id, std::move(data));
       });
@@ -46,9 +49,8 @@ CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
 
 CollatedTrajectoryBuilder::~CollatedTrajectoryBuilder() {}
 
-void CollatedTrajectoryBuilder::AddSensorData(
-    const std::string& sensor_id, std::unique_ptr<sensor::Data> data) {
-  sensor_collator_->AddSensorData(trajectory_id_, sensor_id, std::move(data));
+void CollatedTrajectoryBuilder::AddData(std::unique_ptr<sensor::Data> data) {
+  sensor_collator_->AddSensorData(trajectory_id_, std::move(data));
 }
 
 void CollatedTrajectoryBuilder::HandleCollatedSensorData(

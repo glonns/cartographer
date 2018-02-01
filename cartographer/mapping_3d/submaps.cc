@@ -200,26 +200,54 @@ proto::SubmapsOptions CreateSubmapsOptions(
 Submap::Submap(const float high_resolution, const float low_resolution,
                const transform::Rigid3d& local_submap_pose)
     : mapping::Submap(local_submap_pose),
-      high_resolution_hybrid_grid_(high_resolution),
-      low_resolution_hybrid_grid_(low_resolution) {}
+      high_resolution_hybrid_grid_(
+          common::make_unique<HybridGrid>(high_resolution)),
+      low_resolution_hybrid_grid_(
+          common::make_unique<HybridGrid>(low_resolution)) {}
 
 Submap::Submap(const mapping::proto::Submap3D& proto)
     : mapping::Submap(transform::ToRigid3(proto.local_pose())),
-      high_resolution_hybrid_grid_(proto.high_resolution_hybrid_grid()),
-      low_resolution_hybrid_grid_(proto.low_resolution_hybrid_grid()) {
+      high_resolution_hybrid_grid_(
+          common::make_unique<HybridGrid>(proto.high_resolution_hybrid_grid())),
+      low_resolution_hybrid_grid_(
+          common::make_unique<HybridGrid>(proto.low_resolution_hybrid_grid())) {
   SetNumRangeData(proto.num_range_data());
-  finished_ = proto.finished();
+  SetFinished(proto.finished());
 }
 
-void Submap::ToProto(mapping::proto::Submap* const proto) const {
+void Submap::ToProto(mapping::proto::Submap* const proto,
+                     bool include_probability_grid_data) const {
   auto* const submap_3d = proto->mutable_submap_3d();
   *submap_3d->mutable_local_pose() = transform::ToProto(local_pose());
   submap_3d->set_num_range_data(num_range_data());
-  submap_3d->set_finished(finished_);
-  *submap_3d->mutable_high_resolution_hybrid_grid() =
-      high_resolution_hybrid_grid().ToProto();
-  *submap_3d->mutable_low_resolution_hybrid_grid() =
-      low_resolution_hybrid_grid().ToProto();
+  submap_3d->set_finished(finished());
+  if (include_probability_grid_data) {
+    *submap_3d->mutable_high_resolution_hybrid_grid() =
+        high_resolution_hybrid_grid().ToProto();
+    *submap_3d->mutable_low_resolution_hybrid_grid() =
+        low_resolution_hybrid_grid().ToProto();
+  }
+}
+
+void Submap::UpdateFromProto(const mapping::proto::Submap& proto) {
+  CHECK(proto.has_submap_3d());
+  const auto& submap_3d = proto.submap_3d();
+  SetNumRangeData(submap_3d.num_range_data());
+  SetFinished(submap_3d.finished());
+  if (submap_3d.has_high_resolution_hybrid_grid()) {
+    high_resolution_hybrid_grid_ =
+        submap_3d.has_high_resolution_hybrid_grid()
+            ? common::make_unique<HybridGrid>(
+                  submap_3d.high_resolution_hybrid_grid())
+            : nullptr;
+  }
+  if (submap_3d.has_low_resolution_hybrid_grid()) {
+    low_resolution_hybrid_grid_ =
+        submap_3d.has_low_resolution_hybrid_grid()
+            ? common::make_unique<HybridGrid>(
+                  submap_3d.low_resolution_hybrid_grid())
+            : nullptr;
+  }
 }
 
 void Submap::ToResponseProto(
@@ -227,30 +255,30 @@ void Submap::ToResponseProto(
     mapping::proto::SubmapQuery::Response* const response) const {
   response->set_submap_version(num_range_data());
 
-  AddToTextureProto(high_resolution_hybrid_grid_, global_submap_pose,
+  AddToTextureProto(*high_resolution_hybrid_grid_, global_submap_pose,
                     response->add_textures());
-  AddToTextureProto(low_resolution_hybrid_grid_, global_submap_pose,
+  AddToTextureProto(*low_resolution_hybrid_grid_, global_submap_pose,
                     response->add_textures());
 }
 
 void Submap::InsertRangeData(const sensor::RangeData& range_data,
                              const RangeDataInserter& range_data_inserter,
                              const int high_resolution_max_range) {
-  CHECK(!finished_);
+  CHECK(!finished());
   const sensor::RangeData transformed_range_data = sensor::TransformRangeData(
       range_data, local_pose().inverse().cast<float>());
   range_data_inserter.Insert(
       FilterRangeDataByMaxRange(transformed_range_data,
                                 high_resolution_max_range),
-      &high_resolution_hybrid_grid_);
+      high_resolution_hybrid_grid_.get());
   range_data_inserter.Insert(transformed_range_data,
-                             &low_resolution_hybrid_grid_);
+                             low_resolution_hybrid_grid_.get());
   SetNumRangeData(num_range_data() + 1);
 }
 
 void Submap::Finish() {
-  CHECK(!finished_);
-  finished_ = true;
+  CHECK(!finished());
+  SetFinished(true);
 }
 
 ActiveSubmaps::ActiveSubmaps(const proto::SubmapsOptions& options)

@@ -36,7 +36,28 @@ class RpcHandler : public RpcHandlerInterface {
   using RequestType = StripStream<Incoming>;
   using ResponseType = StripStream<Outgoing>;
 
-  void SetExecutionContext(ExecutionContext* execution_context) {
+  class Writer {
+   public:
+    explicit Writer(std::weak_ptr<Rpc> rpc) : rpc_(std::move(rpc)) {}
+    bool Write(std::unique_ptr<ResponseType> message) const {
+      if (auto rpc = rpc_.lock()) {
+        rpc->Write(std::move(message));
+        return true;
+      }
+      return false;
+    }
+    bool WritesDone() const {
+      if (auto rpc = rpc_.lock()) {
+        rpc->Finish(::grpc::Status::OK);
+        return true;
+      }
+      return false;
+    }
+
+   private:
+    const std::weak_ptr<Rpc> rpc_;
+  };
+  void SetExecutionContext(ExecutionContext* execution_context) override {
     execution_context_ = execution_context;
   }
   void SetRpc(Rpc* rpc) override { rpc_ = rpc; }
@@ -45,6 +66,7 @@ class RpcHandler : public RpcHandlerInterface {
     OnRequest(static_cast<const RequestType&>(*request));
   }
   virtual void OnRequest(const RequestType& request) = 0;
+  void Finish(::grpc::Status status) { rpc_->Finish(status); }
   void Send(std::unique_ptr<ResponseType> response) {
     rpc_->Write(std::move(response));
   }
@@ -52,6 +74,11 @@ class RpcHandler : public RpcHandlerInterface {
   ExecutionContext::Synchronized<T> GetContext() {
     return {execution_context_->lock(), execution_context_};
   }
+  template <typename T>
+  T* GetUnsynchronizedContext() {
+    return dynamic_cast<T*>(execution_context_);
+  }
+  Writer GetWriter() { return Writer(rpc_->GetWeakPtr()); }
 
  private:
   Rpc* rpc_;

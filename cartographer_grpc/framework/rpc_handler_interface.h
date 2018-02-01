@@ -17,6 +17,7 @@
 #ifndef CARTOGRAPHER_GRPC_FRAMEWORK_RPC_HANDLER_INTERFACE_H_H
 #define CARTOGRAPHER_GRPC_FRAMEWORK_RPC_HANDLER_INTERFACE_H_H
 
+#include "cartographer/common/make_unique.h"
 #include "cartographer_grpc/framework/execution_context.h"
 #include "google/protobuf/message.h"
 #include "grpc++/grpc++.h"
@@ -28,11 +29,22 @@ class Rpc;
 class RpcHandlerInterface {
  public:
   virtual ~RpcHandlerInterface() = default;
+  // Returns the fully qualified name of the gRPC method this handler is
+  // implementing. The fully qualified name has the structure
+  // '/<<full service name>>/<<method name>>', where the service name is the
+  // fully qualified proto package name of the service and method name the name
+  // of the method as defined in the service definition of the proto.
+  virtual std::string method_name() const = 0;
   virtual void SetExecutionContext(ExecutionContext* execution_context) = 0;
   virtual void SetRpc(Rpc* rpc) = 0;
   virtual void OnRequestInternal(
       const ::google::protobuf::Message* request) = 0;
-  virtual void OnReadsDone() = 0;
+  virtual void OnReadsDone(){};
+  virtual void OnFinish(){};
+  template <class RpcHandlerType>
+  static std::unique_ptr<RpcHandlerType> Instantiate() {
+    return cartographer::common::make_unique<RpcHandlerType>();
+  }
 };
 
 using RpcHandlerFactory = std::function<std::unique_ptr<RpcHandlerInterface>(
@@ -43,6 +55,7 @@ struct RpcHandlerInfo {
   const google::protobuf::Descriptor* response_descriptor;
   const RpcHandlerFactory rpc_handler_factory;
   const grpc::internal::RpcMethod::RpcType rpc_type;
+  const std::string fully_qualified_name;
 };
 
 }  // namespace framework

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2016 The Cartographer Authors
+# Copyright 2017 The Cartographer Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ set -o verbose
 cd cartographer
 mkdir build
 cd build
-cmake .. -G Ninja
+cmake .. -DBUILD_GRPC=ON -G Ninja
 ninja
-ninja test
+CTEST_OUTPUT_ON_FAILURE=1 ninja test
 sudo ninja install
