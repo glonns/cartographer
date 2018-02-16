@@ -33,7 +33,7 @@
 #include "cartographer/io/xyz_writing_points_processor.h"
 #include "cartographer/io/ply_custom_writing_points_processor.h"
 #include "cartographer/io/pcd_custom_writing_points_processor.h"
-#include "cartographer/io/las_writing_points_processor.h"
+#include "cartographer/io/las_custom_writing_points_processor.h"
 #include "cartographer/io/intensity_range_normalization_processor.h"
 #include "cartographer/io/trajectory_ply_writing_points_processor.h"
 #include "cartographer/mapping/proto/trajectory.pb.h"
@@ -109,7 +109,7 @@ void RegisterBuiltInPointsProcessors(
       file_writer_factory, builder);
   RegisterFileWritingPointsProcessor<PcdCustomWritingPointsProcessor>(
       file_writer_factory, builder);
-  RegisterFileWritingPointsProcessor<LasWritingPointsProcessor>(
+  RegisterFileWritingPointsProcessor<LasCustomWritingPointsProcessor>(
       file_writer_factory, builder);
   RegisterPlainPointsProcessor<IntensityRangeNormalizationProcessor>(builder);
   RegisterFileWritingPointsProcessorWithTrajectories<TrajectoryPlyWritingPointsProcessor>(trajectories, file_writer_factory, builder);
