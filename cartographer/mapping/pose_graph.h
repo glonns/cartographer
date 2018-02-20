@@ -25,6 +25,7 @@
 
 #include "cartographer/common/lua_parameter_dictionary.h"
 #include "cartographer/mapping/id.h"
+#include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/pose_graph_trimmer.h"
 #include "cartographer/mapping/proto/pose_graph.pb.h"
 #include "cartographer/mapping/proto/pose_graph_options.pb.h"
@@ -33,6 +34,7 @@
 #include "cartographer/mapping/trajectory_node.h"
 #include "cartographer/sensor/fixed_frame_pose_data.h"
 #include "cartographer/sensor/imu_data.h"
+#include "cartographer/sensor/landmark_data.h"
 #include "cartographer/sensor/map_by_time.h"
 #include "cartographer/sensor/odometry_data.h"
 #include "cartographer/transform/rigid_transform.h"
@@ -43,35 +45,8 @@ namespace mapping {
 proto::PoseGraphOptions CreatePoseGraphOptions(
     common::LuaParameterDictionary* const parameter_dictionary);
 
-class PoseGraph {
+class PoseGraph : public PoseGraphInterface {
  public:
-  // A "constraint" as in the paper by Konolige, Kurt, et al. "Efficient sparse
-  // pose adjustment for 2d mapping." Intelligent Robots and Systems (IROS),
-  // 2010 IEEE/RSJ International Conference on (pp. 22--29). IEEE, 2010.
-  struct Constraint {
-    struct Pose {
-      transform::Rigid3d zbar_ij;
-      double translation_weight;
-      double rotation_weight;
-    };
-
-    SubmapId submap_id;  // 'i' in the paper.
-    NodeId node_id;      // 'j' in the paper.
-
-    // Pose of the node 'j' relative to submap 'i'.
-    Pose pose;
-
-    // Differentiates between intra-submap (where node 'j' was inserted into
-    // submap 'i') and inter-submap constraints (where node 'j' was not inserted
-    // into submap 'i').
-    enum Tag { INTRA_SUBMAP, INTER_SUBMAP } tag;
-  };
-
-  struct SubmapData {
-    std::shared_ptr<const Submap> submap;
-    transform::Rigid3d pose;
-  };
-
   struct InitialTrajectoryPose {
     int to_trajectory_id;
     transform::Rigid3d relative_pose;
@@ -79,7 +54,7 @@ class PoseGraph {
   };
 
   PoseGraph() {}
-  virtual ~PoseGraph() {}
+  virtual ~PoseGraph() override {}
 
   PoseGraph(const PoseGraph&) = delete;
   PoseGraph& operator=(const PoseGraph&) = delete;
@@ -97,11 +72,12 @@ class PoseGraph {
       int trajectory_id,
       const sensor::FixedFramePoseData& fixed_frame_pose_data) = 0;
 
+  // Inserts landmarks observations.
+  virtual void AddLandmarkData(int trajectory_id,
+                               const sensor::LandmarkData& landmark_data) = 0;
+
   // Finishes the given trajectory.
   virtual void FinishTrajectory(int trajectory_id) = 0;
-
-  // Checks if the given trajectory is finished.
-  virtual bool IsTrajectoryFinished(int trajectory_id) = 0;
 
   // Freezes a trajectory. Poses in this trajectory will not be optimized.
   virtual void FreezeTrajectory(int trajectory_id) = 0;
@@ -130,9 +106,6 @@ class PoseGraph {
   // included in the pose graph.
   virtual void AddTrimmer(std::unique_ptr<PoseGraphTrimmer> trimmer) = 0;
 
-  // Computes optimized poses.
-  virtual void RunFinalOptimization() = 0;
-
   // Gets the current trajectory clusters.
   virtual std::vector<std::vector<int>> GetConnectedTrajectories() = 0;
 
@@ -141,19 +114,7 @@ class PoseGraph {
   // not exist (anymore).
   virtual SubmapData GetSubmapData(const SubmapId& submap_id) = 0;
 
-  // Returns data for all submaps.
-  virtual MapById<SubmapId, SubmapData> GetAllSubmapData() = 0;
-
-  // Returns the transform converting data in the local map frame (i.e. the
-  // continuous, non-loop-closed frame) into the global map frame (i.e. the
-  // discontinuous, loop-closed frame).
-  virtual transform::Rigid3d GetLocalToGlobalTransform(int trajectory_id) = 0;
-
-  // Returns the current optimized trajectories.
-  virtual MapById<NodeId, TrajectoryNode> GetTrajectoryNodes() = 0;
-
-  // Serializes the constraints and trajectories.
-  proto::PoseGraph ToProto();
+  proto::PoseGraph ToProto() override;
 
   // Returns the IMU data.
   virtual sensor::MapByTime<sensor::ImuData> GetImuData() = 0;
@@ -164,9 +125,6 @@ class PoseGraph {
   // Returns the fixed frame pose data.
   virtual sensor::MapByTime<sensor::FixedFramePoseData>
   GetFixedFramePoseData() = 0;
-
-  // Returns the collection of constraints.
-  virtual std::vector<Constraint> constraints() = 0;
 
   // Sets a relative initial pose 'relative_pose' for 'from_trajectory_id' with
   // respect to 'to_trajectory_id' at time 'time'.
@@ -180,6 +138,7 @@ std::vector<PoseGraph::Constraint> FromProto(
     const ::google::protobuf::RepeatedPtrField<
         ::cartographer::mapping::proto::PoseGraph::Constraint>&
         constraint_protos);
+proto::PoseGraph::Constraint ToProto(const PoseGraph::Constraint& constraint);
 
 }  // namespace mapping
 }  // namespace cartographer

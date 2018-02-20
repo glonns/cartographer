@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "cartographer/mapping/trajectory_builder.h"
+#include "cartographer/mapping/trajectory_builder_interface.h"
 
+#include "cartographer/mapping/local_slam_result_data.h"
 #include "cartographer/mapping_2d/local_trajectory_builder_options.h"
 #include "cartographer/mapping_3d/local_trajectory_builder_options.h"
 

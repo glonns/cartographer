@@ -172,6 +172,22 @@ void PoseGraph::AddFixedFramePoseData(
   LOG(FATAL) << "Not yet implemented for 2D.";
 }
 
+void PoseGraph::AddLandmarkData(int trajectory_id,
+                                const sensor::LandmarkData& landmark_data)
+    EXCLUDES(mutex_) {
+  common::MutexLocker locker(&mutex_);
+  for (const auto& observation : landmark_data.landmark_observations) {
+    landmark_nodes_[observation.id].landmark_observations.emplace_back(
+        PoseGraph::LandmarkNode::LandmarkObservation{
+            trajectory_id,
+            landmark_data.time,
+            observation.landmark_to_tracking_transform,
+            observation.translation_weight,
+            observation.rotation_weight,
+        });
+  }
+}
+
 void PoseGraph::ComputeConstraint(const mapping::NodeId& node_id,
                                   const mapping::SubmapId& submap_id) {
   CHECK(submap_data_.at(submap_id).state == SubmapState::kFinished);
@@ -185,10 +201,10 @@ void PoseGraph::ComputeConstraint(const mapping::NodeId& node_id,
           last_connection_time +
               common::FromSeconds(
                   options_.global_constraint_search_after_n_seconds())) {
-    // If the node and the submap belong to the same trajectory or if there has
-    // been a recent global constraint that ties that node's trajectory to the
-    // submap's trajectory, it suffices to do a match constrained to a local
-    // search window.
+    // If the node and the submap belong to the same trajectory or if there
+    // has been a recent global constraint that ties that node's trajectory to
+    // the submap's trajectory, it suffices to do a match constrained to a
+    // local search window.
     const transform::Rigid2d initial_relative_pose =
         optimization_problem_.submap_data()
             .at(submap_id)
@@ -237,8 +253,8 @@ void PoseGraph::ComputeConstraintsForNode(
       constant_data->gravity_alignment);
   for (size_t i = 0; i < insertion_submaps.size(); ++i) {
     const mapping::SubmapId submap_id = submap_ids[i];
-    // Even if this was the last node added to 'submap_id', the submap will only
-    // be marked as finished in 'submap_data_' further below.
+    // Even if this was the last node added to 'submap_id', the submap will
+    // only be marked as finished in 'submap_data_' further below.
     CHECK(submap_data_.at(submap_id).state == SubmapState::kActive);
     submap_data_.at(submap_id).node_ids.emplace(node_id);
     const transform::Rigid2d constraint_transform =
@@ -269,18 +285,21 @@ void PoseGraph::ComputeConstraintsForNode(
   }
   constraint_builder_.NotifyEndOfNode();
   ++num_nodes_since_last_loop_closure_;
+  CHECK(!run_loop_closure_);
   if (options_.optimize_every_n_nodes() > 0 &&
       num_nodes_since_last_loop_closure_ > options_.optimize_every_n_nodes()) {
-    CHECK(!run_loop_closure_);
-    run_loop_closure_ = true;
-    // If there is a 'work_queue_' already, some other thread will take care.
-    if (work_queue_ == nullptr) {
-      work_queue_ = common::make_unique<std::deque<std::function<void()>>>();
-      HandleWorkQueue();
-    }
+    DispatchOptimization();
   }
 }
 
+void PoseGraph::DispatchOptimization() {
+  run_loop_closure_ = true;
+  // If there is a 'work_queue_' already, some other thread will take care.
+  if (work_queue_ == nullptr) {
+    work_queue_ = common::make_unique<std::deque<std::function<void()>>>();
+    HandleWorkQueue();
+  }
+}
 common::Time PoseGraph::GetLatestNodeTime(
     const mapping::NodeId& node_id, const mapping::SubmapId& submap_id) const {
   common::Time time = trajectory_nodes_.at(node_id).constant_data->time;
@@ -351,8 +370,9 @@ void PoseGraph::WaitForAllComputations() {
       constraint_builder_.GetNumFinishedNodes();
   while (!locker.AwaitWithTimeout(
       [this]() REQUIRES(mutex_) {
-        return constraint_builder_.GetNumFinishedNodes() ==
-               num_trajectory_nodes_;
+        return ((constraint_builder_.GetNumFinishedNodes() ==
+                 num_trajectory_nodes_) &&
+                !work_queue_);
       },
       common::FromSeconds(1.))) {
     std::ostringstream progress_info;
@@ -380,12 +400,11 @@ void PoseGraph::FinishTrajectory(const int trajectory_id) {
     CHECK_EQ(finished_trajectories_.count(trajectory_id), 0);
     finished_trajectories_.insert(trajectory_id);
 
-    auto submap_data = optimization_problem_.submap_data();
-    for (auto submap_id_data : submap_data) {
-      submap_data_.at(submap_id_data.id).state = SubmapState::kFinished;
+    for (const auto& submap : submap_data_.trajectory(trajectory_id)) {
+      submap_data_.at(submap.id).state = SubmapState::kFinished;
     }
-    // TODO(jihoonl): Refactor HandleWorkQueue() logic from
-    // ComputeConstraintsForNode and call from here
+    CHECK(!run_loop_closure_);
+    DispatchOptimization();
   });
 }
 
@@ -505,14 +524,21 @@ void PoseGraph::AddTrimmer(std::unique_ptr<mapping::PoseGraphTrimmer> trimmer) {
 }
 
 void PoseGraph::RunFinalOptimization() {
+  {
+    common::MutexLocker locker(&mutex_);
+    AddWorkItem([this]() REQUIRES(mutex_) {
+      optimization_problem_.SetMaxNumIterations(
+          options_.max_num_final_iterations());
+      DispatchOptimization();
+    });
+    AddWorkItem([this]() REQUIRES(mutex_) {
+      optimization_problem_.SetMaxNumIterations(
+          options_.optimization_problem_options()
+              .ceres_solver_options()
+              .max_num_iterations());
+    });
+  }
   WaitForAllComputations();
-  optimization_problem_.SetMaxNumIterations(
-      options_.max_num_final_iterations());
-  RunOptimization();
-  optimization_problem_.SetMaxNumIterations(
-      options_.optimization_problem_options()
-          .ceres_solver_options()
-          .max_num_iterations());
 }
 
 void PoseGraph::RunOptimization() {
@@ -521,8 +547,9 @@ void PoseGraph::RunOptimization() {
   }
 
   // No other thread is accessing the optimization_problem_, constraints_ and
-  // frozen_trajectories_ when executing the Solve. Solve is time consuming, so
-  // not taking the mutex before Solve to avoid blocking foreground processing.
+  // frozen_trajectories_ when executing the Solve. Solve is time consuming,
+  // so not taking the mutex before Solve to avoid blocking foreground
+  // processing.
   optimization_problem_.Solve(constraints_, frozen_trajectories_);
   common::MutexLocker locker(&mutex_);
 
@@ -563,6 +590,19 @@ mapping::MapById<mapping::NodeId, mapping::TrajectoryNode>
 PoseGraph::GetTrajectoryNodes() {
   common::MutexLocker locker(&mutex_);
   return trajectory_nodes_;
+}
+
+mapping::MapById<mapping::NodeId, mapping::TrajectoryNodePose>
+PoseGraph::GetTrajectoryNodePoses() {
+  mapping::MapById<mapping::NodeId, mapping::TrajectoryNodePose> node_poses;
+  common::MutexLocker locker(&mutex_);
+  for (const auto& node_id_data : trajectory_nodes_) {
+    node_poses.Insert(
+        node_id_data.id,
+        mapping::TrajectoryNodePose{node_id_data.data.constant_data != nullptr,
+                                    node_id_data.data.global_pose});
+  }
+  return node_poses;
 }
 
 sensor::MapByTime<sensor::ImuData> PoseGraph::GetImuData() {
@@ -642,15 +682,30 @@ mapping::PoseGraph::SubmapData PoseGraph::GetSubmapData(
   return GetSubmapDataUnderLock(submap_id);
 }
 
-mapping::MapById<mapping::SubmapId, mapping::PoseGraph::SubmapData>
+mapping::MapById<mapping::SubmapId, mapping::PoseGraphInterface::SubmapData>
 PoseGraph::GetAllSubmapData() {
   common::MutexLocker locker(&mutex_);
-  mapping::MapById<mapping::SubmapId, mapping::PoseGraph::SubmapData> submaps;
+  mapping::MapById<mapping::SubmapId, mapping::PoseGraphInterface::SubmapData>
+      submaps;
   for (const auto& submap_id_data : submap_data_) {
     submaps.Insert(submap_id_data.id,
                    GetSubmapDataUnderLock(submap_id_data.id));
   }
   return submaps;
+}
+
+mapping::MapById<mapping::SubmapId, mapping::PoseGraphInterface::SubmapPose>
+PoseGraph::GetAllSubmapPoses() {
+  common::MutexLocker locker(&mutex_);
+  mapping::MapById<mapping::SubmapId, SubmapPose> submap_poses;
+  for (const auto& submap_id_data : submap_data_) {
+    auto submap_data = GetSubmapDataUnderLock(submap_id_data.id);
+    submap_poses.Insert(
+        submap_id_data.id,
+        mapping::PoseGraph::SubmapPose{submap_data.submap->num_range_data(),
+                                       submap_data.pose});
+  }
+  return submap_poses;
 }
 
 transform::Rigid3d PoseGraph::ComputeLocalToGlobalTransform(

@@ -49,11 +49,10 @@ namespace pose_graph {
 
 namespace {
 
-// For odometry and fixed frame pose.
-template <typename MapByTimeType>
+// For odometry.
 std::unique_ptr<transform::Rigid3d> Interpolate(
-    const MapByTimeType& map_by_time, const int trajectory_id,
-    const common::Time time) {
+    const sensor::MapByTime<sensor::OdometryData>& map_by_time,
+    const int trajectory_id, const common::Time time) {
   const auto it = map_by_time.lower_bound(trajectory_id, time);
   if (it == map_by_time.EndOfTrajectory(trajectory_id)) {
     return nullptr;
@@ -69,6 +68,33 @@ std::unique_ptr<transform::Rigid3d> Interpolate(
       Interpolate(transform::TimestampedTransform{prev_it->time, prev_it->pose},
                   transform::TimestampedTransform{it->time, it->pose}, time)
           .transform);
+}
+
+// For fixed frame pose.
+std::unique_ptr<transform::Rigid3d> Interpolate(
+    const sensor::MapByTime<sensor::FixedFramePoseData>& map_by_time,
+    const int trajectory_id, const common::Time time) {
+  const auto it = map_by_time.lower_bound(trajectory_id, time);
+  if (it == map_by_time.EndOfTrajectory(trajectory_id) ||
+      !it->pose.has_value()) {
+    return nullptr;
+  }
+  if (it == map_by_time.BeginOfTrajectory(trajectory_id)) {
+    if (it->time == time) {
+      return common::make_unique<transform::Rigid3d>(it->pose.value());
+    }
+    return nullptr;
+  }
+  const auto prev_it = std::prev(it);
+  if (prev_it->pose.has_value()) {
+    return common::make_unique<transform::Rigid3d>(
+        Interpolate(transform::TimestampedTransform{prev_it->time,
+                                                    prev_it->pose.value()},
+                    transform::TimestampedTransform{it->time, it->pose.value()},
+                    time)
+            .transform);
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -100,20 +126,16 @@ void OptimizationProblem::AddTrajectoryNode(
     const int trajectory_id, const common::Time time,
     const transform::Rigid3d& local_pose,
     const transform::Rigid3d& global_pose) {
-  CHECK_GE(trajectory_id, 0);
-  trajectory_data_.resize(std::max(trajectory_data_.size(),
-                                   static_cast<size_t>(trajectory_id) + 1));
   node_data_.Append(trajectory_id, NodeData{time, local_pose, global_pose});
+  trajectory_data_[trajectory_id];
 }
 
 void OptimizationProblem::InsertTrajectoryNode(
     const mapping::NodeId& node_id, const common::Time time,
     const transform::Rigid3d& local_pose,
     const transform::Rigid3d& global_pose) {
-  CHECK_GE(node_id.trajectory_id, 0);
-  trajectory_data_.resize(std::max(
-      trajectory_data_.size(), static_cast<size_t>(node_id.trajectory_id) + 1));
   node_data_.Insert(node_id, NodeData{time, local_pose, global_pose});
+  trajectory_data_[node_id.trajectory_id];
 }
 
 void OptimizationProblem::TrimTrajectoryNode(const mapping::NodeId& node_id) {
@@ -121,23 +143,19 @@ void OptimizationProblem::TrimTrajectoryNode(const mapping::NodeId& node_id) {
   odometry_data_.Trim(node_data_, node_id);
   fixed_frame_pose_data_.Trim(node_data_, node_id);
   node_data_.Trim(node_id);
+  if (node_data_.SizeOfTrajectoryOrZero(node_id.trajectory_id) == 0) {
+    trajectory_data_.erase(node_id.trajectory_id);
+  }
 }
 
 void OptimizationProblem::AddSubmap(
     const int trajectory_id, const transform::Rigid3d& global_submap_pose) {
-  CHECK_GE(trajectory_id, 0);
-  trajectory_data_.resize(std::max(trajectory_data_.size(),
-                                   static_cast<size_t>(trajectory_id) + 1));
   submap_data_.Append(trajectory_id, SubmapData{global_submap_pose});
 }
 
 void OptimizationProblem::InsertSubmap(
     const mapping::SubmapId& submap_id,
     const transform::Rigid3d& global_submap_pose) {
-  CHECK_GE(submap_id.trajectory_id, 0);
-  trajectory_data_.resize(
-      std::max(trajectory_data_.size(),
-               static_cast<size_t>(submap_id.trajectory_id) + 1));
   submap_data_.Insert(submap_id, SubmapData{global_submap_pose});
 }
 
@@ -222,12 +240,11 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
   // Add cost functions for intra- and inter-submap constraints.
   for (const Constraint& constraint : constraints) {
     problem.AddResidualBlock(
-        new ceres::AutoDiffCostFunction<SpaCostFunction, 6, 4, 3, 4, 3>(
-            new SpaCostFunction(constraint.pose)),
+        SpaCostFunction::CreateAutoDiffCostFunction(constraint.pose),
         // Only loop closure constraints should have a loss function.
         constraint.tag == Constraint::INTER_SUBMAP
             ? new ceres::HuberLoss(options_.huber_scale())
-            : nullptr,
+            : nullptr /* loss function */,
         C_submaps.at(constraint.submap_id).rotation(),
         C_submaps.at(constraint.submap_id).translation(),
         C_nodes.at(constraint.node_id).rotation(),
@@ -301,13 +318,12 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
                result_to_first_center.delta_rotation) *
               result_center_to_center.delta_velocity;
           problem.AddResidualBlock(
-              new ceres::AutoDiffCostFunction<AccelerationCostFunction, 3, 4, 3,
-                                              3, 3, 1, 4>(
-                  new AccelerationCostFunction(
-                      options_.acceleration_weight(), delta_velocity,
-                      common::ToSeconds(first_duration),
-                      common::ToSeconds(second_duration))),
-              nullptr, C_nodes.at(second_node_id).rotation(),
+              AccelerationCostFunction::CreateAutoDiffCostFunction(
+                  options_.acceleration_weight(), delta_velocity,
+                  common::ToSeconds(first_duration),
+                  common::ToSeconds(second_duration)),
+              nullptr /* loss function */,
+              C_nodes.at(second_node_id).rotation(),
               C_nodes.at(first_node_id).translation(),
               C_nodes.at(second_node_id).translation(),
               C_nodes.at(third_node_id).translation(),
@@ -315,10 +331,9 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
               trajectory_data.imu_calibration.data());
         }
         problem.AddResidualBlock(
-            new ceres::AutoDiffCostFunction<RotationCostFunction, 3, 4, 4, 4>(
-                new RotationCostFunction(options_.rotation_weight(),
-                                         result.delta_rotation)),
-            nullptr, C_nodes.at(first_node_id).rotation(),
+            RotationCostFunction::CreateAutoDiffCostFunction(
+                options_.rotation_weight(), result.delta_rotation),
+            nullptr /* loss function */, C_nodes.at(first_node_id).rotation(),
             C_nodes.at(second_node_id).rotation(),
             trajectory_data.imu_calibration.data());
       }
@@ -351,11 +366,9 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
         const transform::Rigid3d relative_pose = ComputeRelativePose(
             trajectory_id, first_node_data, second_node_data);
         problem.AddResidualBlock(
-            new ceres::AutoDiffCostFunction<SpaCostFunction, 6, 4, 3, 4, 3>(
-                new SpaCostFunction(Constraint::Pose{
-                    relative_pose,
-                    options_.consecutive_node_translation_weight(),
-                    options_.consecutive_node_rotation_weight()})),
+            SpaCostFunction::CreateAutoDiffCostFunction(Constraint::Pose{
+                relative_pose, options_.consecutive_node_translation_weight(),
+                options_.consecutive_node_rotation_weight()}),
             nullptr /* loss function */, C_nodes.at(first_node_id).rotation(),
             C_nodes.at(first_node_id).translation(),
             C_nodes.at(second_node_id).rotation(),
@@ -365,7 +378,7 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
   }
 
   // Add fixed frame pose constraints.
-  std::deque<CeresPose> C_fixed_frames;
+  std::map<int, CeresPose> C_fixed_frames;
   for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
     const int trajectory_id = node_it->id.trajectory_id;
     const auto trajectory_end = node_data_.EndOfTrajectory(trajectory_id);
@@ -374,6 +387,7 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
       continue;
     }
 
+    const TrajectoryData& trajectory_data = trajectory_data_.at(trajectory_id);
     bool fixed_frame_pose_initialized = false;
     for (; node_it != trajectory_end; ++node_it) {
       const mapping::NodeId node_id = node_it->id;
@@ -390,27 +404,34 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
           options_.fixed_frame_pose_rotation_weight()};
 
       if (!fixed_frame_pose_initialized) {
-        const transform::Rigid3d fixed_frame_pose_in_map =
-            node_data.global_pose * constraint_pose.zbar_ij.inverse();
-        C_fixed_frames.emplace_back(
-            transform::Rigid3d(
-                fixed_frame_pose_in_map.translation(),
-                Eigen::AngleAxisd(
-                    transform::GetYaw(fixed_frame_pose_in_map.rotation()),
-                    Eigen::Vector3d::UnitZ())),
-            nullptr,
-            common::make_unique<ceres::AutoDiffLocalParameterization<
-                YawOnlyQuaternionPlus, 4, 1>>(),
-            &problem);
+        transform::Rigid3d fixed_frame_pose_in_map;
+        if (trajectory_data.fixed_frame.has_value()) {
+          fixed_frame_pose_in_map = trajectory_data.fixed_frame.value();
+        } else {
+          fixed_frame_pose_in_map =
+              node_data.global_pose * constraint_pose.zbar_ij.inverse();
+        }
+        C_fixed_frames.emplace(
+            std::piecewise_construct, std::forward_as_tuple(trajectory_id),
+            std::forward_as_tuple(
+                transform::Rigid3d(
+                    fixed_frame_pose_in_map.translation(),
+                    Eigen::AngleAxisd(
+                        transform::GetYaw(fixed_frame_pose_in_map.rotation()),
+                        Eigen::Vector3d::UnitZ())),
+                nullptr,
+                common::make_unique<ceres::AutoDiffLocalParameterization<
+                    YawOnlyQuaternionPlus, 4, 1>>(),
+                &problem));
         fixed_frame_pose_initialized = true;
       }
 
       problem.AddResidualBlock(
-          new ceres::AutoDiffCostFunction<SpaCostFunction, 6, 4, 3, 4, 3>(
-              new SpaCostFunction(constraint_pose)),
-          nullptr, C_fixed_frames.back().rotation(),
-          C_fixed_frames.back().translation(), C_nodes.at(node_id).rotation(),
-          C_nodes.at(node_id).translation());
+          SpaCostFunction::CreateAutoDiffCostFunction(constraint_pose),
+          nullptr /* loss function */,
+          C_fixed_frames.at(trajectory_id).rotation(),
+          C_fixed_frames.at(trajectory_id).translation(),
+          C_nodes.at(node_id).rotation(), C_nodes.at(node_id).translation());
     }
   }
 
@@ -421,15 +442,14 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
       &problem, &summary);
   if (options_.log_solver_summary()) {
     LOG(INFO) << summary.FullReport();
-    for (size_t trajectory_id = 0; trajectory_id != trajectory_data_.size();
-         ++trajectory_id) {
+    for (const auto& trajectory_id_and_data : trajectory_data_) {
+      const int trajectory_id = trajectory_id_and_data.first;
+      const TrajectoryData& trajectory_data = trajectory_id_and_data.second;
       if (trajectory_id != 0) {
         LOG(INFO) << "Trajectory " << trajectory_id << ":";
       }
-      LOG(INFO) << "Gravity was: "
-                << trajectory_data_[trajectory_id].gravity_constant;
-      const auto& imu_calibration =
-          trajectory_data_[trajectory_id].imu_calibration;
+      LOG(INFO) << "Gravity was: " << trajectory_data.gravity_constant;
+      const auto& imu_calibration = trajectory_data.imu_calibration;
       LOG(INFO) << "IMU correction was: "
                 << common::RadToDeg(2. * std::acos(imu_calibration[0]))
                 << " deg (" << imu_calibration[0] << ", " << imu_calibration[1]
@@ -446,6 +466,10 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints,
   for (const auto& C_node_id_data : C_nodes) {
     node_data_.at(C_node_id_data.id).global_pose =
         C_node_id_data.data.ToRigid();
+  }
+  for (const auto& C_fixed_frame : C_fixed_frames) {
+    trajectory_data_.at(C_fixed_frame.first).fixed_frame =
+        C_fixed_frame.second.ToRigid();
   }
 }
 

@@ -18,6 +18,7 @@
 #define CARTOGRAPHER_GRPC_FRAMEWORK_SERVICE_H
 
 #include "cartographer_grpc/framework/completion_queue_thread.h"
+#include "cartographer_grpc/framework/event_queue_thread.h"
 #include "cartographer_grpc/framework/execution_context.h"
 #include "cartographer_grpc/framework/rpc.h"
 #include "cartographer_grpc/framework/rpc_handler.h"
@@ -32,10 +33,12 @@ namespace framework {
 // 'Rpc' handler objects.
 class Service : public ::grpc::Service {
  public:
+  using EventQueueSelector = std::function<EventQueue*()>;
   friend class Rpc;
 
   Service(const std::string& service_name,
-          const std::map<std::string, RpcHandlerInfo>& rpc_handlers);
+          const std::map<std::string, RpcHandlerInfo>& rpc_handlers,
+          EventQueueSelector event_queue_selector);
   void StartServing(std::vector<CompletionQueueThread>& completion_queues,
                     ExecutionContext* execution_context);
   void HandleEvent(Rpc::Event event, Rpc* rpc, bool ok);
@@ -45,11 +48,13 @@ class Service : public ::grpc::Service {
   void HandleNewConnection(Rpc* rpc, bool ok);
   void HandleRead(Rpc* rpc, bool ok);
   void HandleWrite(Rpc* rpc, bool ok);
+  void HandleFinish(Rpc* rpc, bool ok);
   void HandleDone(Rpc* rpc, bool ok);
 
   void RemoveIfNotPending(Rpc* rpc);
 
   std::map<std::string, RpcHandlerInfo> rpc_handler_infos_;
+  EventQueueSelector event_queue_selector_;
   ActiveRpcs active_rpcs_;
   bool shutting_down_ = false;
 };

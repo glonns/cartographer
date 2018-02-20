@@ -39,6 +39,7 @@
 #include "cartographer/mapping_3d/pose_graph/optimization_problem.h"
 #include "cartographer/mapping_3d/submaps.h"
 #include "cartographer/sensor/fixed_frame_pose_data.h"
+#include "cartographer/sensor/landmark_data.h"
 #include "cartographer/sensor/odometry_data.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/transform/rigid_transform.h"
@@ -85,6 +86,9 @@ class PoseGraph : public mapping::PoseGraph {
       int trajectory_id,
       const sensor::FixedFramePoseData& fixed_frame_pose_data) override
       EXCLUDES(mutex_);
+  void AddLandmarkData(int trajectory_id,
+                       const sensor::LandmarkData& landmark_data) override
+      EXCLUDES(mutex_);
 
   void FinishTrajectory(int trajectory_id) override;
   bool IsTrajectoryFinished(int trajectory_id) override;
@@ -102,12 +106,16 @@ class PoseGraph : public mapping::PoseGraph {
   std::vector<std::vector<int>> GetConnectedTrajectories() override;
   mapping::PoseGraph::SubmapData GetSubmapData(
       const mapping::SubmapId& submap_id) EXCLUDES(mutex_) override;
-  mapping::MapById<mapping::SubmapId, mapping::PoseGraph::SubmapData>
+  mapping::MapById<mapping::SubmapId, mapping::PoseGraphInterface::SubmapData>
   GetAllSubmapData() EXCLUDES(mutex_) override;
+  mapping::MapById<mapping::SubmapId, SubmapPose> GetAllSubmapPoses()
+      EXCLUDES(mutex_) override;
   transform::Rigid3d GetLocalToGlobalTransform(int trajectory_id)
       EXCLUDES(mutex_) override;
   mapping::MapById<mapping::NodeId, mapping::TrajectoryNode>
   GetTrajectoryNodes() override EXCLUDES(mutex_);
+  mapping::MapById<mapping::NodeId, mapping::TrajectoryNodePose>
+  GetTrajectoryNodePoses() override EXCLUDES(mutex_);
   sensor::MapByTime<sensor::ImuData> GetImuData() override EXCLUDES(mutex_);
   sensor::MapByTime<sensor::OdometryData> GetOdometryData() override
       EXCLUDES(mutex_);
@@ -219,6 +227,9 @@ class PoseGraph : public mapping::PoseGraph {
   // Whether the optimization has to be run before more data is added.
   bool run_loop_closure_ GUARDED_BY(mutex_) = false;
 
+  // Schedules optimization (i.e. loop closure) to run.
+  void DispatchOptimization() REQUIRES(mutex_);
+
   // Current optimization problem.
   pose_graph::OptimizationProblem optimization_problem_;
   pose_graph::ConstraintBuilder constraint_builder_ GUARDED_BY(mutex_);
@@ -237,6 +248,10 @@ class PoseGraph : public mapping::PoseGraph {
   // Global submap poses currently used for displaying data.
   mapping::MapById<mapping::SubmapId, pose_graph::SubmapData>
       global_submap_poses_ GUARDED_BY(mutex_);
+
+  // Global landmark poses with all observations.
+  std::map<std::string /* landmark ID */, PoseGraph::LandmarkNode>
+      landmark_nodes_ GUARDED_BY(mutex_);
 
   // List of all trimmers to consult when optimizations finish.
   std::vector<std::unique_ptr<mapping::PoseGraphTrimmer>> trimmers_
