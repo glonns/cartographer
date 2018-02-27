@@ -22,8 +22,7 @@ set(CARTOGRAPHER_PATCH_VERSION 0)
 set(CARTOGRAPHER_VERSION ${CARTOGRAPHER_MAJOR_VERSION}.${CARTOGRAPHER_MINOR_VERSION}.${CARTOGRAPHER_PATCH_VERSION})
 set(CARTOGRAPHER_SOVERSION ${CARTOGRAPHER_MAJOR_VERSION}.${CARTOGRAPHER_MINOR_VERSION})
 option(BUILD_GRPC "build Cartographer gRPC support" false)
-# TODO(gaschler): Make this an option.
-set(GRPC_PLUGIN_PATH "/usr/local/bin/grpc_cpp_plugin")
+option(BUILD_PROMETHEUS "build Prometheus monitoring support" false)
 
 include("${PROJECT_SOURCE_DIR}/cmake/functions.cmake")
 google_initialize_cartographer_project()
@@ -65,11 +64,19 @@ file(GLOB_RECURSE ALL_EXECUTABLES "*_main.cc")
 list(REMOVE_ITEM ALL_LIBRARY_SRCS ${ALL_TESTS})
 list(REMOVE_ITEM ALL_LIBRARY_SRCS ${ALL_EXECUTABLES})
 file(GLOB_RECURSE ALL_GRPC_FILES "cartographer_grpc/*")
+file(GLOB_RECURSE ALL_PROMETHEUS_FILES "cartographer_grpc/metrics/prometheus/*")
+list(REMOVE_ITEM ALL_GRPC_FILES ${ALL_PROMETHEUS_FILES})
 if (NOT ${BUILD_GRPC})
   list(REMOVE_ITEM ALL_LIBRARY_HDRS ${ALL_GRPC_FILES})
   list(REMOVE_ITEM ALL_LIBRARY_SRCS ${ALL_GRPC_FILES})
   list(REMOVE_ITEM ALL_TESTS ${ALL_GRPC_FILES})
   list(REMOVE_ITEM ALL_EXECUTABLES ${ALL_GRPC_FILES})
+endif()
+if (NOT ${BUILD_PROMETHEUS})
+  list(REMOVE_ITEM ALL_LIBRARY_HDRS ${ALL_PROMETHEUS_FILES})
+  list(REMOVE_ITEM ALL_LIBRARY_SRCS ${ALL_PROMETHEUS_FILES})
+  list(REMOVE_ITEM ALL_TESTS ${ALL_PROMETHEUS_FILES})
+  list(REMOVE_ITEM ALL_EXECUTABLES ${ALL_PROMETHEUS_FILES})
 endif()
 set(INSTALL_SOURCE_HDRS ${ALL_LIBRARY_HDRS})
 file(GLOB_RECURSE INTERNAL_HDRS "cartographer/internal/*.h"
@@ -119,20 +126,16 @@ if(${BUILD_GRPC})
 
     list(APPEND ALL_GRPC_SERVICE_SRCS "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.pb.cc")
     list(APPEND ALL_GRPC_SERVICE_HDRS "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.pb.h")
-    list(APPEND ALL_GRPC_SERVICE_SRCS "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.grpc.pb.cc")
-    list(APPEND ALL_GRPC_SERVICE_HDRS "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.grpc.pb.h")
 
     add_custom_command(
-      OUTPUT "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.grpc.pb.cc"
-             "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.grpc.pb.h"
+      OUTPUT "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.pb.cc"
+             "${PROJECT_BINARY_DIR}/${DIR}/${FIL_WE}.pb.h"
       COMMAND  ${PROTOBUF_PROTOC_EXECUTABLE}
-      ARGS --grpc_out  ${PROJECT_BINARY_DIR}
-        --cpp_out  ${PROJECT_BINARY_DIR}
+      ARGS --cpp_out  ${PROJECT_BINARY_DIR}
         -I ${PROJECT_SOURCE_DIR}
-        --plugin=protoc-gen-grpc=${GRPC_PLUGIN_PATH}
         ${ABS_FIL}
       DEPENDS ${ABS_FIL}
-      COMMENT "Running C++ protocol buffer compiler with gRPC support on ${ABS_FIL}"
+      COMMENT "Running C++ protocol buffer compiler on ${ABS_FIL}"
       VERBATIM
     )
   endforeach()
@@ -163,6 +166,10 @@ if(${BUILD_GRPC})
     SRCS
       cartographer_grpc/map_builder_server_main.cc
   )
+  target_link_libraries(cartographer_grpc_server PUBLIC grpc++)
+  if(${BUILD_PROMETHEUS})
+    target_link_libraries(cartographer_grpc_server PUBLIC prometheus-cpp)
+  endif()
 endif()
 
 foreach(ABS_FIL ${ALL_TESTS})
@@ -174,6 +181,9 @@ foreach(ABS_FIL ${ALL_TESTS})
   google_test("${TEST_TARGET_NAME}" ${ABS_FIL})
   if(${BUILD_GRPC})
     target_link_libraries("${TEST_TARGET_NAME}" PUBLIC grpc++)
+  endif()
+  if(${BUILD_PROMETHEUS})
+    target_link_libraries(${PROJECT_NAME} PUBLIC prometheus-cpp)
   endif()
 endforeach()
 
@@ -214,6 +224,10 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 target_link_libraries(${PROJECT_NAME} PUBLIC ${PROTOBUF_LIBRARY} pthread)
 if(${BUILD_GRPC})
   target_link_libraries(${PROJECT_NAME} PUBLIC grpc++)
+endif()
+if(${BUILD_PROMETHEUS})
+  target_link_libraries(${PROJECT_NAME} PUBLIC prometheus-cpp)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC USE_PROMETHEUS=1)
 endif()
 
 # Add the binary directory first, so that port.h is included after it has

@@ -37,7 +37,6 @@
 #include "cartographer/sensor/landmark_data.h"
 #include "cartographer/sensor/map_by_time.h"
 #include "cartographer/sensor/odometry_data.h"
-#include "cartographer/transform/rigid_transform.h"
 
 namespace cartographer {
 namespace mapping {
@@ -91,6 +90,10 @@ class PoseGraph : public PoseGraphInterface {
   // appropriate frozen trajectory.
   virtual void AddNodeFromProto(const transform::Rigid3d& global_pose,
                                 const proto::Node& node) = 0;
+
+  // Sets the trajectory data from a proto.
+  virtual void SetTrajectoryDataFromProto(
+      const mapping::proto::TrajectoryData& data) = 0;
 
   // Adds information that 'node_id' was inserted into 'submap_id'. The submap
   // has to be deserialized first.
