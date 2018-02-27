@@ -19,8 +19,10 @@
 
 #include <vector>
 
+#include "cartographer/common/optional.h"
 #include "cartographer/mapping/id.h"
 #include "cartographer/mapping/submaps.h"
+#include "cartographer/transform/rigid_transform.h"
 
 namespace cartographer {
 namespace mapping {
@@ -58,7 +60,7 @@ class PoseGraphInterface {
       double rotation_weight;
     };
     std::vector<LandmarkObservation> landmark_observations;
-    transform::Rigid3d global_landmark_pose;
+    common::optional<transform::Rigid3d> global_landmark_pose;
   };
 
   struct SubmapPose {
@@ -69,6 +71,12 @@ class PoseGraphInterface {
   struct SubmapData {
     std::shared_ptr<const Submap> submap;
     transform::Rigid3d pose;
+  };
+
+  struct TrajectoryData {
+    double gravity_constant = 9.8;
+    std::array<double, 4> imu_calibration{{1., 0., 0., 0.}};
+    common::optional<transform::Rigid3d> fixed_frame_origin_in_map;
   };
 
   PoseGraphInterface() {}
@@ -97,8 +105,14 @@ class PoseGraphInterface {
   // Returns the current optimized trajectory poses.
   virtual MapById<NodeId, TrajectoryNodePose> GetTrajectoryNodePoses() = 0;
 
+  // Returns the current optimized landmark poses.
+  virtual std::map<std::string, transform::Rigid3d> GetLandmarkPoses() = 0;
+
   // Checks if the given trajectory is finished.
   virtual bool IsTrajectoryFinished(int trajectory_id) = 0;
+
+  // Returns the trajectory data.
+  virtual std::map<int, TrajectoryData> GetTrajectoryData() = 0;
 
   // Returns the collection of constraints.
   virtual std::vector<Constraint> constraints() = 0;

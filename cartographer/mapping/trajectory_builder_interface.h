@@ -107,10 +107,14 @@ class TrajectoryBuilderInterface {
                              const sensor::LandmarkData& landmark_data) = 0;
   // Allows to directly add local SLAM results to the 'PoseGraph'. Note that it
   // is invalid to add local SLAM results for a trajectory that has a
-  // 'LocalTrajectoryBuilder'.
+  // 'LocalTrajectoryBuilder2D/3D'.
   virtual void AddLocalSlamResultData(
       std::unique_ptr<mapping::LocalSlamResultData> local_slam_result_data) = 0;
 };
+
+proto::SensorId ToProto(const TrajectoryBuilderInterface::SensorId& sensor_id);
+TrajectoryBuilderInterface::SensorId FromProto(
+    const proto::SensorId& sensor_id_proto);
 
 }  // namespace mapping
 }  // namespace cartographer
