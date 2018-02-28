@@ -70,8 +70,10 @@ LocalTrajectoryBuilder3D::AddRangeData(
   }
 
   //CHECK(!range_data.returns.empty());
-  if (range_data.returns.empty())
+  if (range_data.returns.empty()) {
+    ++num_accumulated_;
     return nullptr;
+  }
   CHECK_EQ(range_data.returns.back()[3], 0);
   const common::Time time_first_point =
       time + common::FromSeconds(range_data.returns.front()[3]);
