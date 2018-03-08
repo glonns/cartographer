@@ -71,9 +71,12 @@ LocalTrajectoryBuilder3D::AddRangeData(
 
   //CHECK(!range_data.returns.empty());
   if (range_data.returns.empty()) {
+	  if (num_accumulated_ == 0) {
+	    // 'accumulated_range_data_.origin' is not used.
+	    accumulated_range_data_ = sensor::RangeData{{}, {}, {}};
+	  }
     ++num_accumulated_;
-    return nullptr;
-  }
+  } else {
   CHECK_EQ(range_data.returns.back()[3], 0);
   const common::Time time_first_point =
       time + common::FromSeconds(range_data.returns.front()[3]);
@@ -127,7 +130,7 @@ LocalTrajectoryBuilder3D::AddRangeData(
     }
   }
   ++num_accumulated_;
-
+  }
   if (num_accumulated_ >= options_.num_accumulated_range_data()) {
     num_accumulated_ = 0;
     transform::Rigid3f current_pose =
