@@ -20,11 +20,9 @@
 #include "cartographer/mapping/map_builder_interface.h"
 
 #include <memory>
-#include <set>
 
 #include "cartographer/common/thread_pool.h"
-#include "cartographer/mapping/2d/pose_graph_2d.h"
-#include "cartographer/mapping/3d/pose_graph_3d.h"
+#include "cartographer/mapping/pose_graph.h"
 #include "cartographer/mapping/proto/map_builder_options.pb.h"
 #include "cartographer/sensor/collator_interface.h"
 
@@ -53,9 +51,6 @@ class MapBuilder : public MapBuilderInterface {
       const proto::TrajectoryBuilderOptionsWithSensorIds&
           options_with_sensor_ids_proto) override;
 
-  mapping::TrajectoryBuilderInterface* GetTrajectoryBuilder(
-      int trajectory_id) const override;
-
   void FinishTrajectory(int trajectory_id) override;
 
   std::string SubmapToProto(const SubmapId& submap_id,
@@ -63,22 +58,32 @@ class MapBuilder : public MapBuilderInterface {
 
   void SerializeState(io::ProtoStreamWriterInterface* writer) override;
 
-  void LoadMap(io::ProtoStreamReaderInterface* reader) override;
+  void LoadState(io::ProtoStreamReaderInterface* reader,
+                 bool load_frozen_state) override;
 
-  int num_trajectory_builders() const override;
+  mapping::PoseGraphInterface* pose_graph() override {
+    return pose_graph_.get();
+  }
 
-  mapping::PoseGraphInterface* pose_graph() override;
+  int num_trajectory_builders() const override {
+    return trajectory_builders_.size();
+  }
+
+  mapping::TrajectoryBuilderInterface* GetTrajectoryBuilder(
+      int trajectory_id) const override {
+    return trajectory_builders_.at(trajectory_id).get();
+  }
 
   const std::vector<proto::TrajectoryBuilderOptionsWithSensorIds>&
-  GetAllTrajectoryBuilderOptions() const override;
+  GetAllTrajectoryBuilderOptions() const override {
+    return all_trajectory_builder_options_;
+  }
 
  private:
   const proto::MapBuilderOptions options_;
   common::ThreadPool thread_pool_;
 
-  std::unique_ptr<PoseGraph2D> pose_graph_2d_;
-  std::unique_ptr<PoseGraph3D> pose_graph_3d_;
-  mapping::PoseGraph* pose_graph_;
+  std::unique_ptr<PoseGraph> pose_graph_;
 
   std::unique_ptr<sensor::CollatorInterface> sensor_collator_;
   std::vector<std::unique_ptr<mapping::TrajectoryBuilderInterface>>

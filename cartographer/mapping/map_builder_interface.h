@@ -24,7 +24,7 @@
 #include "Eigen/Geometry"
 #include "cartographer/common/lua_parameter_dictionary.h"
 #include "cartographer/common/port.h"
-#include "cartographer/io/proto_stream.h"
+#include "cartographer/io/proto_stream_interface.h"
 #include "cartographer/mapping/id.h"
 #include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/proto/submap_visualization.pb.h"
@@ -80,8 +80,9 @@ class MapBuilderInterface {
   // Serializes the current state to a proto stream.
   virtual void SerializeState(io::ProtoStreamWriterInterface* writer) = 0;
 
-  // Loads submaps from a proto stream into a new frozen trajectory.
-  virtual void LoadMap(io::ProtoStreamReaderInterface* reader) = 0;
+  // Loads the SLAM state from a proto stream.
+  virtual void LoadState(io::ProtoStreamReaderInterface* reader,
+                         bool load_frozen_state) = 0;
 
   virtual int num_trajectory_builders() const = 0;
 
