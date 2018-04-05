@@ -23,7 +23,6 @@
 #include "Eigen/Geometry"
 #include "cartographer/common/math.h"
 #include "cartographer/common/port.h"
-#include "cartographer/mapping/2d/probability_grid.h"
 #include "cartographer/mapping/id.h"
 #include "cartographer/mapping/probability_values.h"
 #include "cartographer/mapping/proto/serialization.pb.h"
@@ -77,15 +76,13 @@ class Submap {
 
   // Number of RangeData inserted.
   int num_range_data() const { return num_range_data_; }
-
-  // Whether the submap is finished or not.
-  bool finished() const { return finished_; }
-
-  void SetNumRangeData(const int num_range_data) {
+  void set_num_range_data(const int num_range_data) {
     num_range_data_ = num_range_data;
   }
 
-  void SetFinished(bool finished) { finished_ = finished; }
+  // Whether the submap is finished or not.
+  bool finished() const { return finished_; }
+  void set_finished(bool finished) { finished_ = finished; }
 
  private:
   const transform::Rigid3d local_pose_;
