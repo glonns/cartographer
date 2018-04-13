@@ -79,7 +79,7 @@ LasCustomWritingPointsProcessor::LasCustomWritingPointsProcessor(
     : next_(next),
       num_points_(0),
       has_colors_(false),
-      has_intensity_(false),
+      has_intensity_(true),
       has_rings_(false),
       file_(std::move(file_writer)),
       file_name_(file_name) {}
@@ -220,10 +220,11 @@ void LasCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
 	//echo
 	laspoint.set_return_number((U8)batch->echoes[ii]);
 	//rgb + nir
-	if(has_colors_){
-		U16 rgb[4] = { (U16)((double)batch->colors[ii][0]*256.0), (U16)((double)batch->colors[ii][1]*256.0), (U16)((double)batch->colors[ii][2]*256.0), (U16)0 };
-		laspoint.set_RGB(rgb);
-	}
+	U16 rgb[4] = { (U16)((double)batch->colors[ii][0]*256.0), (U16)((double)batch->colors[ii][1]*256.0), (U16)((double)batch->colors[ii][2]*256.0), (U16)0 };
+	laspoint.set_RGB(rgb);
+	//std::cout << "has_colors_ " << has_colors_ << std::endl;
+	//if(has_colors_){
+	//}
 
     	// write the point
     	laswriter->write_point(&laspoint);
