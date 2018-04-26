@@ -29,7 +29,7 @@ using Eigen::Array2i;
 using Eigen::Vector2f;
 
 TEST(ProbabilityGridTest, ProtoConstructor) {
-  proto::ProbabilityGrid proto;
+  proto::Grid2D proto;
   const MapLimits limits(1., {2., 3.}, CellLimits(4., 5.));
   *proto.mutable_limits() = ToProto(limits);
   for (int i = 6; i < 12; ++i) {
@@ -39,6 +39,7 @@ TEST(ProbabilityGridTest, ProtoConstructor) {
   proto.mutable_known_cells_box()->set_max_y(20);
   proto.mutable_known_cells_box()->set_min_x(21);
   proto.mutable_known_cells_box()->set_min_y(22);
+  proto.mutable_probability_grid_2d();
 
   ProbabilityGrid grid(proto);
   EXPECT_EQ(proto.limits().DebugString(), ToProto(grid.limits()).DebugString());
@@ -75,29 +76,34 @@ TEST(ProbabilityGridTest, ApplyOdds) {
 
   probability_grid.SetProbability(Array2i(1, 0), 0.5);
 
-  probability_grid.ApplyLookupTable(Array2i(1, 0),
-                                    ComputeLookupTableToApplyOdds(Odds(0.9)));
+  probability_grid.ApplyLookupTable(
+      Array2i(1, 0),
+      ComputeLookupTableToApplyCorrespondenceCostOdds(Odds(0.9)));
   probability_grid.FinishUpdate();
   EXPECT_GT(probability_grid.GetProbability(Array2i(1, 0)), 0.5);
 
   probability_grid.SetProbability(Array2i(0, 1), 0.5);
-  probability_grid.ApplyLookupTable(Array2i(0, 1),
-                                    ComputeLookupTableToApplyOdds(Odds(0.1)));
+  probability_grid.ApplyLookupTable(
+      Array2i(0, 1),
+      ComputeLookupTableToApplyCorrespondenceCostOdds(Odds(0.1)));
   probability_grid.FinishUpdate();
   EXPECT_LT(probability_grid.GetProbability(Array2i(0, 1)), 0.5);
 
   // Tests adding odds to an unknown cell.
-  probability_grid.ApplyLookupTable(Array2i(1, 1),
-                                    ComputeLookupTableToApplyOdds(Odds(0.42)));
+  probability_grid.ApplyLookupTable(
+      Array2i(1, 1),
+      ComputeLookupTableToApplyCorrespondenceCostOdds(Odds(0.42)));
   EXPECT_NEAR(probability_grid.GetProbability(Array2i(1, 1)), 0.42, 1e-4);
 
   // Tests that further updates are ignored if FinishUpdate() isn't called.
-  probability_grid.ApplyLookupTable(Array2i(1, 1),
-                                    ComputeLookupTableToApplyOdds(Odds(0.9)));
+  probability_grid.ApplyLookupTable(
+      Array2i(1, 1),
+      ComputeLookupTableToApplyCorrespondenceCostOdds(Odds(0.9)));
   EXPECT_NEAR(probability_grid.GetProbability(Array2i(1, 1)), 0.42, 1e-4);
   probability_grid.FinishUpdate();
-  probability_grid.ApplyLookupTable(Array2i(1, 1),
-                                    ComputeLookupTableToApplyOdds(Odds(0.9)));
+  probability_grid.ApplyLookupTable(
+      Array2i(1, 1),
+      ComputeLookupTableToApplyCorrespondenceCostOdds(Odds(0.9)));
   EXPECT_GT(probability_grid.GetProbability(Array2i(1, 1)), 0.42);
 }
 
