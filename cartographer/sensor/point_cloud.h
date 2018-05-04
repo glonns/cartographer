@@ -54,6 +54,8 @@ struct PointCloudWithIntensities {
   std::vector<uint8_t> reds;
   std::vector<uint8_t> greens;
   std::vector<uint8_t> blues;
+  std::vector<uint8_t> alphas;
+  std::vector<uint16_t> numechoes;
 };
 
 // Transforms 'point_cloud' according to 'transform'.

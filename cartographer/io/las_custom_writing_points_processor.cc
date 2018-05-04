@@ -219,6 +219,8 @@ void LasCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
 	laspoint.set_scan_angle_rank((I8)batch->rings[ii]);
 	//echo
 	laspoint.set_return_number((U8)batch->echoes[ii]);
+        //number of echoes
+        laspoint.set_number_of_returns((U8)batch->numechoes[ii]);
 	//rgb + nir
 	U16 rgb[4] = { (U16)((double)batch->colors[ii][0]*256.0), (U16)((double)batch->colors[ii][1]*256.0), (U16)((double)batch->colors[ii][2]*256.0), (U16)0 };
 	laspoint.set_RGB(rgb);

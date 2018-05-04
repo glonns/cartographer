@@ -70,6 +70,9 @@ struct PointsBatch {
   // echoes are optional. If set, they are the echo number of a laser point.
   std::vector<uint16_t> echoes;
 
+  // number of echoes are optional. If set, they are the number of echoes from a given laser pulse.
+  std::vector<uint16_t> numechoes;
+
   // Time at which the first point of this batch has been acquired. UNIX time
   double start_time_unix;
 };
