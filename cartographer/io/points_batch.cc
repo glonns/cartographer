@@ -39,6 +39,10 @@ void RemovePoints(std::unordered_set<int> to_remove, PointsBatch* batch) {
   if (!batch->echoes.empty()) {
     echoes.reserve(new_num_points);
   }
+  std::vector<uint16_t> numechoes;
+  if (!batch->numechoes.empty()) {
+    numechoes.reserve(new_num_points);
+  }
   for (size_t i = 0; i < batch->points.size(); ++i) {
     if (to_remove.count(i) == 1) {
       continue;
@@ -56,12 +60,16 @@ void RemovePoints(std::unordered_set<int> to_remove, PointsBatch* batch) {
     if (!batch->echoes.empty()) {
       echoes.push_back(batch->echoes[i]);
     }
+    if (!batch->numechoes.empty()) {
+      numechoes.push_back(batch->numechoes[i]);
+    }
   }
   batch->points = std::move(points);
   batch->intensities = std::move(intensities);
   batch->colors = std::move(colors);
   batch->rings = std::move(rings);
   batch->echoes = std::move(echoes);
+  batch->numechoes = std::move(numechoes);
 }
 
 }  // namespace io
