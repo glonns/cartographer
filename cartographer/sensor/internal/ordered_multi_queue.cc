@@ -152,7 +152,9 @@ void OrderedMultiQueue::CannotMakeProgress(const QueueKey& queue_key) {
   blocker_ = queue_key;
   for (auto& entry : queues_) {
     if (entry.second.queue.Size() > kMaxQueueSize) {
-      LOG_EVERY_N(WARNING, 60) << "Queue waiting for data: " << queue_key;
+      if (strcmp(queue_key.sensor_id.c_str(), "fix")) {
+        LOG_EVERY_N(WARNING, 60) << "Queue waiting for data: " << queue_key;
+      }
       return;
     }
   }
