@@ -68,9 +68,9 @@ void CollatedTrajectoryBuilder::HandleCollatedSensorData(
 
   if (std::chrono::steady_clock::now() - last_logging_time_ >
       common::FromSeconds(kSensorDataRatesLoggingPeriodSeconds)) {
-    for (const auto& pair : rate_timers_) {
-      LOG(INFO) << pair.first << " rate: " << pair.second.DebugString();
-    }
+    //for (const auto& pair : rate_timers_) {
+    //  LOG(INFO) << pair.first << " rate: " << pair.second.DebugString();
+    //}
     last_logging_time_ = std::chrono::steady_clock::now();
   }
 
