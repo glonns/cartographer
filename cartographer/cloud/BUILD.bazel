@@ -90,10 +90,12 @@ cc_binary(
     name = src.replace("/", "_").replace(".cc", ""),
     srcs = [src],
     data = ["//:configuration_files"],
+    flaky = True,  # :internal_client_server_test sometimes fails.
     # Tests cannot run concurrently as some of them open the same port.
     tags = ["exclusive"],
     deps = [
         ":cartographer_grpc",
+        "//cartographer:cartographer_test_library",
         "@com_google_googletest//:gtest_main",
     ],
 ) for src in glob(
