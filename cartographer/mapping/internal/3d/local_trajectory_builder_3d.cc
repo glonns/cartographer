@@ -123,10 +123,10 @@ LocalTrajectoryBuilder3D::AddRangeData(
     const sensor::TimedPointCloudData& unsynchronized_data) {
   const auto synchronized_data =
       range_data_collator_.AddRangeData(sensor_id, unsynchronized_data);
-//  if (synchronized_data.ranges.empty()) {
-//    LOG(INFO) << "Range data collator filling buffer.";
-//    return nullptr;
-//  }
+  if (synchronized_data.ranges.empty()) {
+    //LOG(INFO) << "Range data collator filling buffer.";
+    return nullptr;
+  }
 
   const common::Time& current_sensor_time = synchronized_data.time;
   if (extrapolator_ == nullptr) {
@@ -135,7 +135,7 @@ LocalTrajectoryBuilder3D::AddRangeData(
     LOG(INFO) << "IMU not yet initialized.";
     return nullptr;
   }
-
+  //LOG(INFO) << "time " << synchronized_data.time << " origin " << synchronized_data.origin;
   CHECK(!synchronized_data.ranges.empty());
   CHECK_LE(synchronized_data.ranges.back().point_time.time, 0.f);
   const common::Time time_first_point =
@@ -196,7 +196,7 @@ LocalTrajectoryBuilder3D::AddRangeData(
     }
   }
   ++num_accumulated_;
-  }
+  
   if (num_accumulated_ >= options_.num_accumulated_range_data()) {
     absl::optional<common::Duration> sensor_duration;
     if (last_sensor_time_.has_value()) {

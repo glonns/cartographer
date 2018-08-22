@@ -48,7 +48,7 @@ void IntensityRangeNormalizationProcessor::Process(
   if (!batch->intensities.empty() && (frame_id_.empty() || batch->frame_id == frame_id_)) {
     for (size_t point_nbr = 0; point_nbr < batch->intensities.size(); point_nbr++) {
 	//range of current point in batch
-	float range = (batch->points[point_nbr] - batch->origin).norm();
+	float range = (batch->points[point_nbr].position - batch->origin).norm();
 	//float range = sqrt(pow(batch->points[point_nbr][0],2.0f) + pow(batch->points[point_nbr][1],2.0f) + pow(batch->points[point_nbr][2],2.0f));
 	//normalize intensity based on range
 	float intensity_unscaled = batch->intensities[point_nbr] * pow((range/R_reference_distance_), n_surface_type_);

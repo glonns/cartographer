@@ -175,7 +175,7 @@ void LasCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
   for (size_t ii = 0; ii < batch->points.size(); ++ii) {
     // populate the .las point
 	//coordinates
-	Eigen::Vector3d coordinates = Eigen::Vector3d((double)batch->points[ii][0], (double)batch->points[ii][1], (double)batch->points[ii][2]);
+	Eigen::Vector3d coordinates = Eigen::Vector3d((double)batch->points[ii].position[0], (double)batch->points[ii].position[1], (double)batch->points[ii].position[2]);
 	//rotate
 	if(has_transformation_matrix_){
 		coordinates = R*coordinates;
