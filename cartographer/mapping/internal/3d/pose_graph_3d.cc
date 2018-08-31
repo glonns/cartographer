@@ -127,7 +127,7 @@ NodeId PoseGraph3D::AppendNode(
     const SubmapId submap_id =
         data_.submap_data.Append(trajectory_id, InternalSubmapData());
     data_.submap_data.at(submap_id).submap = insertion_submaps.back();
-    LOG(INFO) << "Inserted submap " << submap_id << ".";
+    //LOG(INFO) << "Inserted submap " << submap_id << ".";
   }
   return node_id;
 }
@@ -505,7 +505,9 @@ void PoseGraph3D::DrainWorkQueue() {
     }
     process_work_queue = work_item() == WorkItem::Result::kDoNotRunOptimization;
   }
-  LOG(INFO) << "Remaining work items in queue: " << work_queue_size;
+  if (work_queue_size > 0) {
+    LOG(INFO) << "Remaining work items in queue: " << work_queue_size;
+  }
   // We have to optimize again.
   constraint_builder_.WhenDone(
       [this](const constraints::ConstraintBuilder3D::Result& result) {
