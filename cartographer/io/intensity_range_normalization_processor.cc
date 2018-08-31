@@ -1,8 +1,8 @@
 
 #include "cartographer/io/intensity_range_normalization_processor.h"
 
+#include "absl/memory/memory.h"
 #include "Eigen/Core"
-#include "cartographer/common/make_unique.h"
 #include "cartographer/common/math.h"
 #include "glog/logging.h"
 
@@ -26,7 +26,7 @@ IntensityRangeNormalizationProcessor::FromDictionary(
   const float max_intensity_scale_to = dictionary->GetDouble("max_intensity_scale_to");
 
 
-  return common::make_unique<IntensityRangeNormalizationProcessor>(
+  return absl::make_unique<IntensityRangeNormalizationProcessor>(
       max_range, n_surface_type, R_reference_distance, min_intensity_in_data_set, max_intensity_in_data_set, min_intensity_scale_to, max_intensity_scale_to, frame_id, next);
 }
 
@@ -48,7 +48,7 @@ void IntensityRangeNormalizationProcessor::Process(
   if (!batch->intensities.empty() && (frame_id_.empty() || batch->frame_id == frame_id_)) {
     for (size_t point_nbr = 0; point_nbr < batch->intensities.size(); point_nbr++) {
 	//range of current point in batch
-	float range = (batch->points[point_nbr] - batch->origin).norm();
+	float range = (batch->points[point_nbr].position - batch->origin).norm();
 	//float range = sqrt(pow(batch->points[point_nbr][0],2.0f) + pow(batch->points[point_nbr][1],2.0f) + pow(batch->points[point_nbr][2],2.0f));
 	//normalize intensity based on range
 	float intensity_unscaled = batch->intensities[point_nbr] * pow((range/R_reference_distance_), n_surface_type_);

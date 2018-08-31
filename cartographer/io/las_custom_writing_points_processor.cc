@@ -20,8 +20,8 @@
 #include <sstream>
 #include <string>
 
+#include "absl/memory/memory.h"
 #include "cartographer/common/lua_parameter_dictionary.h"
-#include "cartographer/common/make_unique.h"
 #include "cartographer/io/points_batch.h"
 #include "glog/logging.h"
 
@@ -70,7 +70,7 @@ LasCustomWritingPointsProcessor::FromDictionary(
     common::LuaParameterDictionary* const dictionary,
     PointsProcessor* const next) {
 	std::string name = dictionary->GetString("filename");
-  return common::make_unique<LasCustomWritingPointsProcessor>(
+  return absl::make_unique<LasCustomWritingPointsProcessor>(
       file_writer_factory(name), next, name);
 }
 
@@ -175,7 +175,7 @@ void LasCustomWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch
   for (size_t ii = 0; ii < batch->points.size(); ++ii) {
     // populate the .las point
 	//coordinates
-	Eigen::Vector3d coordinates = Eigen::Vector3d((double)batch->points[ii][0], (double)batch->points[ii][1], (double)batch->points[ii][2]);
+	Eigen::Vector3d coordinates = Eigen::Vector3d((double)batch->points[ii].position[0], (double)batch->points[ii].position[1], (double)batch->points[ii].position[2]);
 	//rotate
 	if(has_transformation_matrix_){
 		coordinates = R*coordinates;
