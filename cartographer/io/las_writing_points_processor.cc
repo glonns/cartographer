@@ -20,8 +20,8 @@
 #include <sstream>
 #include <string>
 
+#include "absl/memory/memory.h"
 #include "cartographer/common/lua_parameter_dictionary.h"
-#include "cartographer/common/make_unique.h"
 #include "cartographer/io/points_batch.h"
 #include "glog/logging.h"
 
@@ -98,7 +98,7 @@ LasWritingPointsProcessor::FromDictionary(
     const FileWriterFactory& file_writer_factory,
     common::LuaParameterDictionary* const dictionary,
     PointsProcessor* const next) {
-  return common::make_unique<LasWritingPointsProcessor>(
+  return absl::make_unique<LasWritingPointsProcessor>(
       file_writer_factory(dictionary->GetString("filename")), next);
 }
 

@@ -16,9 +16,14 @@
 
 #include "cartographer/common/time.h"
 
+#include <time.h>
+#include <cerrno>
+#include <cstring>
 #include <string>
 #include <iostream>
 #include <iomanip>
+
+#include "glog/logging.h"
 
 namespace cartographer {
 namespace common {
@@ -29,6 +34,11 @@ Duration FromSeconds(const double seconds) {
 }
 
 double ToSeconds(const Duration duration) {
+  return std::chrono::duration_cast<std::chrono::duration<double>>(duration)
+      .count();
+}
+
+double ToSeconds(const std::chrono::steady_clock::duration duration) {
   return std::chrono::duration_cast<std::chrono::duration<double>>(duration)
       .count();
 }
@@ -55,6 +65,13 @@ std::ostream& operator<<(std::ostream& os, const Time time) {
 common::Duration FromMilliseconds(const int64 milliseconds) {
   return std::chrono::duration_cast<Duration>(
       std::chrono::milliseconds(milliseconds));
+}
+
+double GetThreadCpuTimeSeconds() {
+  struct timespec thread_cpu_time;
+  CHECK(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &thread_cpu_time) == 0)
+      << std::strerror(errno);
+  return thread_cpu_time.tv_sec + 1e-9 * thread_cpu_time.tv_nsec;
 }
 
 }  // namespace common
