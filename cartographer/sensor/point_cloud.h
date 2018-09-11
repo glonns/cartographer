@@ -39,15 +39,13 @@ using PointCloud = std::vector<RangefinderPoint>;
 // third entry is 0.f (and the fourth entry is time).
 using TimedPointCloud = std::vector<TimedRangefinderPoint>;
 
-/*
 struct PointCloudWithIntensities {
   TimedPointCloud points;
   std::vector<float> intensities;
 };
-*/
 
 //point cloud with intensity and ring number
-struct PointCloudWithIntensities {
+struct PointCloudWithIntensities2 {
   TimedPointCloud points;
   std::vector<float> intensities;
   std::vector<uint16_t> rings;
