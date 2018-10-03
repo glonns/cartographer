@@ -76,6 +76,9 @@ struct PointsBatch {
 
   // Time at which the first point of this batch has been acquired. UNIX time
   double start_time_unix;
+  
+  // pose of lidar at 'time'
+  cartographer::transform::Rigid3f lidar_pose;
 };
 
 // Removes the indices in 'to_remove' from 'batch'.

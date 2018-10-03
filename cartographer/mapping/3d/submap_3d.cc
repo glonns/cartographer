@@ -311,6 +311,7 @@ void ActiveSubmaps3D::AddSubmap(const transform::Rigid3d& local_submap_pose) {
   submaps_.emplace_back(new Submap3D(options_.high_resolution(),
                                      options_.low_resolution(),
                                      local_submap_pose));
+
   //LOG(INFO) << "Added submap " << matching_submap_index_ + submaps_.size();
 }
 
