@@ -123,10 +123,10 @@ LocalTrajectoryBuilder3D::AddRangeData(
     const sensor::TimedPointCloudData& unsynchronized_data) {
   const auto synchronized_data =
       range_data_collator_.AddRangeData(sensor_id, unsynchronized_data);
-  if (synchronized_data.ranges.empty()) {
-    //LOG(INFO) << "Range data collator filling buffer.";
-    return nullptr;
-  }
+//  if (synchronized_data.ranges.empty()) {
+//    //LOG(INFO) << "Range data collator filling buffer.";
+//    return nullptr;
+//  }
 
   const common::Time& current_sensor_time = synchronized_data.time;
   if (extrapolator_ == nullptr) {
